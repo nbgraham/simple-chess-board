@@ -2,12 +2,15 @@ import React from 'react';
 import { useBoardContext } from '../context';
 import { TPiece, Piece } from '../models/piece';
 import { PieceIcon } from './piece_icon';
-import { BoardColor, BoardMove, getMoveDescription } from '../models/board';
+import { BoardColor } from '../models/board';
+import { copyToClipboard } from '../utils/clipboard_utils';
+import { ChessMove, getMoveDescription } from '../models/chess_move';
 
 const buttonStyle: React.CSSProperties = { fontSize: 20, margin: 5 };
 
 export const ScorePanel = () => {
   const { board, resetBoard, undoLastMove, redoMove, moveHistory } = useBoardContext();
+  const copyBoard = () => copyToClipboard(board.asShorthand())
 
   const scoreBoardSectionStyle: React.CSSProperties = { flex: 2, margin: 12 };
 
@@ -17,6 +20,7 @@ export const ScorePanel = () => {
         <button onClick={resetBoard} style={buttonStyle}>New Game</button>
         <button onClick={undoLastMove} style={buttonStyle}>Undo Move</button>
         <button onClick={redoMove} style={buttonStyle}>Redo Move</button>
+        <button onClick={copyBoard} style={buttonStyle}>Copy Board</button>
       </div>
       <div style={scoreBoardSectionStyle}>
         {board.winner
@@ -42,7 +46,7 @@ export const ScorePanel = () => {
 }
 
 type MoveHistoryProps = {
-  completedMoves: BoardMove[]
+  completedMoves: ChessMove[]
 }
 const MoveHistory: React.SFC<MoveHistoryProps> = React.memo(({ completedMoves }) => {
   return (

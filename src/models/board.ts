@@ -1,4 +1,4 @@
-import { ChessMoveAction, PromotePawnAction, boardReducer } from '../reducers/board_reducer';
+import { boardReducer } from '../reducers/board_reducer';
 import { AvailableMovesService } from '../services/available_moves';
 import { flattenArray, arraysContainSameItems } from '../utils/array_utils';
 import { Cell } from './cell';
@@ -7,14 +7,12 @@ import { Piece, TPiece, PieceType } from './piece';
 import { LETTERS_FOR_COLUMNS, SESSION_STORAGE_BOARD_KEY } from '../constants';
 import { betweenInclusive } from '../utils/range_utils';
 import { startingPosition } from './arrangements';
-import { useReducer } from 'react';
+import { boardToShorthand } from './piece_shorthand';
 
 export type BoardColor = 'black' | 'white';
 export type BoardPieces = (TPiece | undefined | null)[][];
 
-export type BoardMove = ChessMoveAction | PromotePawnAction;
-
-type PieceAtCell = {
+export type PieceAtCell = {
   cell: Cell;
   piece: TPiece
 }
@@ -22,22 +20,6 @@ type PieceAtCell = {
 export const otherColor = (color: BoardColor): BoardColor => color === 'black' ? 'white' : 'black';
 export const getLabelForRow = (rowIndex: number) => Board.N_ROWS - rowIndex
 export const getLabelForColumn = (columnIndex: number) => LETTERS_FOR_COLUMNS[columnIndex]
-
-export const getMoveDescription = (move: BoardMove) => {
-  if (move.type === 'promote_pawn') {
-    const promotedPiece = Piece.create(move.promotedTo, move.pieceColor);
-    return `Pawn at ${Cell.toString(move.location)} promoted to a ${Piece.toString(promotedPiece)}`;
-  } else if (move.type === 'move') {
-    const isCastle = move.chessMoveType === 'castle';
-    const pieceToCapture = isCastle ? undefined : move.capturingPiece;
-
-    const currentTurn = move.piece.color;
-    return isCastle
-      ? `${currentTurn} castles`
-      : `${currentTurn} moves ${move.piece.type} from ${Cell.toString(move.moveFrom)} to from ${Cell.toString(move.moveTo)}
-          ${pieceToCapture ? ` capturing a ${Piece.toString(pieceToCapture)}` : ''}`;
-  }
-}
 
 export class Board {
   static N_ROWS = 8;
@@ -141,9 +123,18 @@ export class Board {
     const hasAllRowsOfPieces = this.pieces.length === Board.N_ROWS;
     const hasAllColumnsOfPieces = this.pieces.every(row => row.length === Board.N_COLS)
     if (!(hasAllRowsOfPieces && hasAllColumnsOfPieces)) {
-      throw new Error(`Supplied board pieces did not fit ${Board.N_ROWS}x${Board.N_COLS} board`)
+      throw new Error(`Supplied board pieces did not fit ${Board.N_ROWS}x${Board.N_COLS} board. Columns: ${this.pieces.map(row => row.length)}`)
     }
     this.currentTurn = currentTurn;
+
+    const whitePieces = this.getAllPieceLocations('white');
+    const blackPieces = this.getAllPieceLocations('black');
+    if (whitePieces.length > 16) {
+      throw new Error('Cannot create a board with more than 16 white pieces')
+    }
+    if (blackPieces.length > 16) {
+      throw new Error('Cannot create a board with more than 16 black pieces')
+    }
   }
 
   toBuilder() {
@@ -195,6 +186,10 @@ export class Board {
     const availableMovesService = new AvailableMovesService(this);
     const allMovesForColor = flattenArray(piecesForColor.map(piece => availableMovesService.getAvailablePlacesToMoveFrom(piece.cell)));
     return allMovesForColor;
+  }
+
+  asShorthand() {
+    return boardToShorthand(this.pieces);
   }
 
 }
@@ -307,11 +302,6 @@ class BoardBuilder extends Board {
 
   switchTurns() {
     this.currentTurn = otherColor(this.currentTurn);
-    return this;
-  }
-
-  removeMostRecentMove() {
-    this.completedMoves = this.completedMoves.slice(0, -1);
     return this;
   }
 }

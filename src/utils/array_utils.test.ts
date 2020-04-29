@@ -1,53 +1,33 @@
-import { arraysContainSameItems } from './array_utils';
+import { distinctFilter, flattenArray } from './array_utils'
 
-describe('arraysContainSameItems', () => {
-    test('numbers', () => {
-        expect(arraysContainSameItems([1, 2, 3, 4, 5], [1, 2, 3, 4, 5])).toBe(true)
+describe('distinct', () => {
+    test('all distinct', () => {
+        expect([1, 2, 3, 4].filter(distinctFilter())).toEqual([1, 2, 3, 4])
     })
 
-    test('same array', () => {
-        const array = [1, 2, 3, 4, 5]
-        expect(arraysContainSameItems(array, array)).toBe(true)
+    test('remove one duplicate', () => {
+        expect([1, 2, 3, 3].filter(distinctFilter())).toEqual([1, 2, 3])
     })
 
-    test('heterogeneous types', () => {
-        expect(arraysContainSameItems([1, true, undefined], [1, true, undefined])).toBe(true)
+    test('entire array is duplicate', () => {
+        expect([1, 1, 1].filter(distinctFilter())).toEqual([1])
     })
 
-    test('order agnostic', () => {
-        expect(arraysContainSameItems([1, 2, 3], [2, 3, 1])).toBe(true)
+    test('multiple duplicates', () => {
+        expect([4, 1, 1, 1, 2, 3, 2, 3, 4].filter(distinctFilter())).toEqual([4, 1, 2, 3])
     })
 
-    test('length agnostic', () => {
-        expect(arraysContainSameItems([1, 1, 1, 2, 3], [2, 3, 1])).toBe(true)
+    test('keeps first instance', () => {
+        expect([1, 2, 3, 4, 4, 3, 2, 1].filter(distinctFilter())).toEqual([1, 2, 3, 4])
+    })
+})
+
+describe('flatten', () => {
+    test('flatten lists with one item', () => {
+        expect(flattenArray([[1], [2], [3]])).toEqual([1, 2, 3])
     })
 
-    test('objects', () => {
-        const a = {};
-        const b = {};
-        const c = {};
-        expect(arraysContainSameItems([a, b, c], [a, b, c])).toBe(true)
-    })
-
-    test('uses object equality to compare items', () => {
-        expect(arraysContainSameItems([{}, {}], [{}, {}])).toBe(false)
-    })
-
-    test('numbers', () => {
-        expect(arraysContainSameItems([1, 2, 4], [1, 2, 3])).toBe(false)
-    })
-
-    test('commutative', () => {
-        const first = [1, 2, 4];
-        const second = [1, 2, 3];
-        const normal = arraysContainSameItems(first, second);
-        const flipped = arraysContainSameItems(second, first);
-        const expectedResult = false;
-        expect(normal).toBe(expectedResult);
-        expect(flipped).toBe(expectedResult);
-    })
-
-    test('different lengths', () => {
-        expect(arraysContainSameItems([1, 2], [1, 2, 3])).toBe(false)
+    test('flatten lists with one item different lengths', () => {
+        expect(flattenArray([[1, 2, 3], [4], [5, 6]])).toEqual([1, 2, 3, 4, 5, 6])
     })
 })

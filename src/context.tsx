@@ -3,20 +3,20 @@ import { SESSION_STORAGE_BOARD_KEY } from './constants';
 import { Board } from './models/board';
 import { Cell } from './models/cell';
 import { ChessMove } from './models/chess_move';
-import { boardReducer, BoardReducerAction } from './reducers/board_reducer';
+import { boardReducer } from './reducers/board_reducer';
 import { AvailableMovesService } from './services/available_moves';
 import { useRewindableReducer, SaveOptions } from './hooks/use_rewindable_reducer';
 
 type TBoardContext = {
     board: Board;
-    moveHistory: BoardReducerAction[]
+    moveHistory: ChessMove[]
     resetBoard: () => void;
     undoLastMove: () => void;
     redoMove: () => void;
     selectedCell?: Cell;
     setSelectedCell: (selectedCell?: Cell) => void;
     availablePlacesToMove: ChessMove[];
-    dispatchAction: (action: BoardReducerAction) => void;
+    dispatchAction: (action: ChessMove) => void;
 }
 const BoardContext = React.createContext<TBoardContext>({
     board: new Board(),
@@ -30,7 +30,7 @@ const BoardContext = React.createContext<TBoardContext>({
 });
 
 const initialBoard = new Board()
-const saveOptions: Partial<SaveOptions<Board, BoardReducerAction>> = {
+const saveOptions: Partial<SaveOptions<Board, ChessMove>> = {
     saveKey: 'chess-board',
     deserializeState: Board.fromJSON
 }

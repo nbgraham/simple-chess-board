@@ -1,5 +1,5 @@
 import { TPiece, PieceType } from './piece';
-import { BoardColor } from './board';
+import { BoardColor, BoardPieces } from './board';
 
 type ColorShorthand = '⚪' | '⚫';
 type PieceTypeShorthand = '🏰' | '🐴' | '⛪' | '👸' | '🤴' | '♟';
@@ -33,6 +33,38 @@ const toPieceType = (pieceTypeEmoji: PieceTypeShorthand): PieceType => {
             return 'queen';
         case '🤴':
             return 'king'
+    }
+}
+
+export const boardToShorthand = (boardPieces: BoardPieces): string => 
+    `[\n${boardPieces.map(row => `\t[${row.map(toShorthandFunction).join(', ')}]`).join(',\n')}\n]`
+
+const toShorthandFunction = (piece?: TPiece | null) => piece ? `${piece.hasBeenMoved ? 'm' : 'u'}('${toShorthand(piece)}')` : "e('🕳 🕳')"
+export const toShorthand = (piece: TPiece) => `${toShorthandColor(piece.color)}${toShorthandType(piece.type)}` as PieceShorthand
+
+const toShorthandColor = (color: BoardColor): ColorShorthand => {
+    switch(color) {
+        case 'white':
+            return '⚪'
+        case 'black':
+            return '⚫'
+    }
+}
+
+const toShorthandType = (type: PieceType): PieceTypeShorthand => {
+    switch (type) {
+        case 'pawn':
+            return '♟';
+        case 'bishop':
+            return '⛪';
+        case 'rook':
+            return '🏰';
+        case 'knight':
+            return '🐴';
+        case 'queen':
+            return '👸';
+        case 'king':
+            return '🤴'
     }
 }
 

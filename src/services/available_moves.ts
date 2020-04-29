@@ -114,10 +114,10 @@ export class AvailableMovesService {
     const castleMoves: ChessMove[] = piecesToCastleWith
       .filter(pieceToCastleWith => this.getCanCastle([selectedPieceAtCell, pieceToCastleWith]))
       .map(pieceToCastleWith => ({
+        type: 'castle',
         piece: selectedPieceAtCell.piece,
         moveFrom: selectedPieceAtCell.cell,
         moveTo: pieceToCastleWith.cell,
-        chessMoveType: 'castle'
       }));
     return castleMoves;
   }
@@ -190,20 +190,20 @@ export class AvailableMovesService {
       if (pieceAtCurrentCell) {
         if (pieceAtCurrentCell.color !== selectedPieceAtCell.piece?.color) {
           result.push({
+            type: 'capture',
             piece: selectedPieceAtCell.piece,
             moveFrom: selectedPieceAtCell.cell,
             moveTo: currentCell,
-            chessMoveType: 'capture',
             capturingPiece: pieceAtCurrentCell
           });
         }
         break;
       }
       result.push({
+        type: 'move',
         piece: selectedPieceAtCell.piece,
         moveFrom: selectedPieceAtCell.cell,
         moveTo: currentCell,
-        chessMoveType: 'move'
       });
     }
 
@@ -220,19 +220,19 @@ export class AvailableMovesService {
         if (pieceAtCurrentCell) {
           if (options.canCapture && pieceAtCurrentCell.color !== selectedPieceAtCell.piece.color) {
             result.push({
+              type: 'capture',
               piece: selectedPieceAtCell.piece,
               moveFrom: selectedPieceAtCell.cell,
               moveTo: currentCell,
-              chessMoveType: 'capture',
               capturingPiece: pieceAtCurrentCell
             });
           }
         } else if (!options.canOnlyMoveIfCapturing) {
           result.push({
+            type: 'move',
             piece: selectedPieceAtCell.piece,
             moveFrom: selectedPieceAtCell.cell,
             moveTo: currentCell,
-            chessMoveType: 'move'
           });
         }
       }

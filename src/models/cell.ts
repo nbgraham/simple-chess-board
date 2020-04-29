@@ -10,8 +10,9 @@ export type Cell = {
 }
 
 export const Cell = {
-  equals: (cell: Cell, otherCell?: Cell) => {
-    return !!otherCell && cell.rowIndex === otherCell.rowIndex && cell.columnIndex === otherCell.columnIndex;
+  equals: (cell?: Cell, otherCell?: Cell) => {
+    return cell === otherCell ||
+    (!!cell && !!otherCell && cell.rowIndex === otherCell.rowIndex && cell.columnIndex === otherCell.columnIndex);
   },
 
   toString: (cell: Cell) => {

@@ -37,13 +37,8 @@ export const CellComponent = ({ rowIndex, columnIndex }: CellProps) => {
     const isAvailableToMoveTo = !!availableMoveForThisCell;
 
     const moveToCell = useCallback(
-        () => selectedCell && availableMoveForThisCell && dispatchAction({
-            ...availableMoveForThisCell,
-            type: 'move',
-            moveFrom: selectedCell,
-            moveTo: thisCell,
-        }),
-        [selectedCell, availableMoveForThisCell, dispatchAction, thisCell]
+        () => availableMoveForThisCell && dispatchAction(availableMoveForThisCell),
+        [availableMoveForThisCell, dispatchAction]
     );
 
     const isPromotablePawn = currentPiece && currentPiece.type === 'pawn' &&
@@ -52,7 +47,7 @@ export const CellComponent = ({ rowIndex, columnIndex }: CellProps) => {
         (type: PieceType) => currentPiece && dispatchAction({
             type: 'promote_pawn',
             location: thisCell,
-            pieceColor: currentPiece.color,
+            piece: currentPiece,
             promotedTo: type
         }),
         [dispatchAction, thisCell, currentPiece]
