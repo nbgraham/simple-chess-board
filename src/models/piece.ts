@@ -14,11 +14,11 @@ export const Piece = {
     hasBeenMoved: false
   } as TPiece),
 
-  equals: (pieceA?: TPiece, pieceB?: TPiece) =>
-    pieceA === pieceB ||
+  equals: (pieceA?: TPiece | null, pieceB?: TPiece | null) =>
+    (!pieceA && !pieceB) ||
     (!!pieceA && !!pieceB && pieceA.type === pieceB.type && pieceA.color === pieceB.color),
 
-  toString: (piece: TPiece) => `${piece.color} ${piece.type}`,
+  toString: (piece?: TPiece | null) => piece ? `${piece.color} ${piece.type}` : '',
 
   getRelativeValue: (piece: TPiece) => {
     switch (piece.type) {

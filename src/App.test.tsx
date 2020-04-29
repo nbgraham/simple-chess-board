@@ -2,8 +2,10 @@ import React from 'react';
 import { render } from '@testing-library/react';
 import App from './App';
 
-test('renders learn react link', () => {
+test('renders app', () => {
   const { getByText } = render(<App />);
-  const linkElement = getByText(/learn react/i);
-  expect(linkElement).toBeInTheDocument();
+  const newGameButton = getByText(/New Game/i);
+  const undoMoveButton = getByText(/Undo Move/i);
+  expect(newGameButton).toBeInTheDocument();
+  expect(undoMoveButton).toBeInTheDocument();
 });

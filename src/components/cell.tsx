@@ -2,7 +2,8 @@ import React, { useCallback, useMemo } from 'react';
 import { PieceType, TPiece, Piece } from '../models/piece';
 import { useBoardContext } from '../context';
 import { Cell } from '../models/cell';
-import { BoardColor } from '../models/board';
+import { BoardColor, Board } from '../models/board';
+import { PieceIcon } from './piece_icon';
 
 const PAWN_PROMOTION_PIECE_TYPES = ['queen', 'knight', 'rook', 'bishop'] as PieceType[];
 
@@ -11,39 +12,61 @@ type CellProps = {
     columnIndex: number;
 }
 export const CellComponent = ({ rowIndex, columnIndex }: CellProps) => {
-    const thisCell = useMemo(
-        () => new Cell(rowIndex, columnIndex),
+    const thisCell: Cell = useMemo(
+        () => ({ rowIndex, columnIndex }),
         [rowIndex, columnIndex]
     );
 
-    const { board, setSelectedCell, selectedCell, availablePlacesToMove, dispatchAction } = useBoardContext();
-    const color = board.getCellColor(thisCell);
-    const currentPiece = board.pieceAtCell(thisCell);
-    const isSelected = selectedCell && selectedCell.equals(thisCell);
+    const {
+        board, setSelectedCell, selectedCell, availablePlacesToMove, dispatchAction
+    } = useBoardContext();
+
+    const cellBoardColor = Board.getCellColor(thisCell);
+    const currentPiece = board.getPiece(thisCell);
+    const isSelected = selectedCell && Cell.equals(selectedCell, thisCell);
+
     const toggleSelected = useCallback(
-        () => thisCell.equals(selectedCell) ? setSelectedCell(undefined) : setSelectedCell(thisCell),
+        () => Cell.equals(thisCell, selectedCell) ? setSelectedCell(undefined) : setSelectedCell(thisCell),
         [setSelectedCell, selectedCell, thisCell]
     );
 
-    const isAvailableToMoveTo = availablePlacesToMove.some((availableCell) => availableCell.equals(thisCell));
+    const availableMoveForThisCell = useMemo(
+        () => availablePlacesToMove.find(availbleMove => Cell.equals(availbleMove.moveTo, thisCell)),
+        [availablePlacesToMove, thisCell]
+    );
+    const isAvailableToMoveTo = !!availableMoveForThisCell;
+
     const moveToCell = useCallback(
-        () => selectedCell && dispatchAction({ type: 'move', locationToMoveFrom: selectedCell, locationToMoveTo: thisCell }),
-        [selectedCell, dispatchAction, thisCell]
+        () => selectedCell && availableMoveForThisCell && dispatchAction({
+            ...availableMoveForThisCell,
+            type: 'move',
+            moveFrom: selectedCell,
+            moveTo: thisCell,
+        }),
+        [selectedCell, availableMoveForThisCell, dispatchAction, thisCell]
     );
 
-    const isPromotablePawn = currentPiece?.type === 'pawn' && (rowIndex === 0 || rowIndex === 7);
+    const isPromotablePawn = currentPiece && currentPiece.type === 'pawn' &&
+        Board.isCellAlongFarRowForColor(thisCell, currentPiece.color);
     const selectPromotion = useCallback(
-        (type: PieceType) => dispatchAction({ type: 'promote_pawn', location: thisCell, promotedPiece: Piece.create(type, color) }),
-        [dispatchAction, thisCell, color]
+        (type: PieceType) => currentPiece && dispatchAction({
+            type: 'promote_pawn',
+            location: thisCell,
+            pieceColor: currentPiece.color,
+            promotedTo: type
+        }),
+        [dispatchAction, thisCell, currentPiece]
     )
+
     return (
         <div
-            className={`cell boardColor${color} ${isSelected ? 'selected' : ''} ${isAvailableToMoveTo ? 'available' : ''}`}
+            className={`cell boardColor${cellBoardColor} ${isSelected ? 'selected' : ''} ${isAvailableToMoveTo ? 'available' : ''}`}
             onClick={isPromotablePawn ? undefined : isAvailableToMoveTo ? moveToCell : toggleSelected}
-        >   {
+        >
+            {
                 isPromotablePawn && currentPiece
                     ? <PromotablePawnOptions color={currentPiece.color} selectPromotion={selectPromotion} />
-                    : currentPiece && <img style={{ height: '60%' }} src={getPieceImgUrl(currentPiece)} alt={currentPiece.toString()} />
+                    : currentPiece && <PieceIcon style={{ height: '60%' }} piece={currentPiece} />
             }
         </div>
     );
@@ -82,30 +105,6 @@ const PromotablePiece = ({ piece, selectPromotion }: PromotablePieceProps) => {
         [selectPromotion, piece]
     )
     return (
-        <img style={{ height: '20%' }} src={getPieceImgUrl(piece)} alt={piece.toString()} onClick={select} />
+        <PieceIcon piece={piece} style={{ height: '20%' }} onClick={select} />
     );
 }
-
-const getPieceImgUrl = (piece: TPiece) => {
-    return getPieceImgUrlFromAssets(getPieceKey(piece.type), piece.color);
-}
-
-const getPieceKey = (type: PieceType) => {
-    switch (type) {
-        case 'king':
-            return 'k';
-        case 'queen':
-            return 'q';
-        case 'rook':
-            return 'r';
-        case 'bishop':
-            return 'b'
-        case 'knight':
-            return 'n';
-        case 'pawn':
-            return 'p'
-    }
-}
-
-const getPieceImgUrlFromAssets = (pieceId: string, color: BoardColor) =>
-    require(`../assets/chess_pieces/Chess_${pieceId}${color === 'white' ? 'l' : 'd'}t45.svg`);

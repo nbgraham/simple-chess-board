@@ -1,5 +1,7 @@
 import React from 'react';
 import { ColumnComponent } from './column';
+import { getLabelForRow } from '../models/board';
+import { range } from '../utils/range_utils';
 
 type BoardProps = {
     numColumns: number;
@@ -8,21 +10,25 @@ type BoardProps = {
 export const BoardComponent = ({ numColumns, numRows }: BoardProps) => {
     return (
         <div className="flex-grid">
-            <div className="col header">
-                <div className="header"/>
-                {Array(numRows).fill(null).map((_, rowIndex) => (
-                    <div key={rowIndex} className="cell">{numRows - rowIndex}</div>
-                ))}
-            </div>
-            {Array(numColumns).fill(null).map((_, columnIndex) => (
+            <ColumnWithRowLabels numRows={numRows} />
+            {range(0, numColumns).map(columnIndex => (
                 <ColumnComponent key={columnIndex} columnIndex={columnIndex} numRows={numRows} />
             ))}
-            <div className="col header">
-                <div className="header"/>
-                {Array(numRows).fill(null).map((_, rowIndex) => (
-                    <div key={rowIndex} className="cell">{numRows - rowIndex}</div>
-                ))}
-            </div>
+            <ColumnWithRowLabels numRows={numRows} />
         </div>
     );
 }
+
+type ColumnWithRowLabelsProps = {
+    numRows: number;
+}
+const ColumnWithRowLabels = React.memo(({ numRows }: ColumnWithRowLabelsProps) => {
+    return (
+        <div className="col header">
+            <div className="header" />
+            {range(0, numRows).map(rowIndex => (
+                <div key={rowIndex} className="cell">{getLabelForRow(rowIndex)}</div>
+            ))}
+        </div>
+    )
+})

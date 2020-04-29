@@ -1,42 +1,49 @@
-import { PieceType, TPiece, Piece } from './piece';
-import { Cell, Vector } from './cell';
-import { betweenInclusive, rangeInclusive, rangeAscendingExclusive, arraysContainSameItems } from '../utils';
-import { useReducer } from 'react';
-
-const SESSION_STORAGE_BOARD_KEY = 'chess-board';
+import { ChessMoveAction, PromotePawnAction, boardReducer } from '../reducers/board_reducer';
+import { AvailableMovesService } from '../services/available_moves';
+import { flattenArray } from '../utils/array_utils';
+import { Cell } from './cell';
+import { isCaptureOfKingOfColor } from './chess_move';
+import { Piece, TPiece } from './piece';
+import { LETTERS_FOR_COLUMNS } from '../constants';
+import { betweenInclusive } from '../utils/range_utils';
+import { u, e } from './piece_shorthand';
+import { startingPosition } from './arrangements';
 
 export type BoardColor = 'black' | 'white';
-export type BoardPieces = (TPiece | undefined)[][];
-type BoardMove = {
-  type: 'move'
-  locationToMoveFrom: Cell;
-  locationToMoveTo: Cell;
-  description?: string;
-}| {
-  type: 'promote_pawn',
-  location: Cell;
-  promotedPiece: TPiece;
-  description?: string;
-};
+export type BoardPieces = (TPiece | undefined | null)[][];
 
-export type BoardReducerAction = BoardMove | {
-  type: 'reset'
-};
+export type BoardMove = ChessMoveAction | PromotePawnAction;
 
 type PieceAtCell = {
   cell: Cell;
   piece: TPiece
 }
 
-function otherColor(color: BoardColor) {
-  return color === 'black' ? 'white' : 'black';
+export const otherColor = (color: BoardColor): BoardColor => color === 'black' ? 'white' : 'black';
+export const getLabelForRow = (rowIndex: number) => Board.N_ROWS - rowIndex
+export const getLabelForColumn = (columnIndex: number) => LETTERS_FOR_COLUMNS[columnIndex]
+
+export const getMoveDescription = (move: BoardMove) => {
+  if (move.type === 'promote_pawn') {
+    const promotedPiece = Piece.create(move.promotedTo, move.pieceColor);
+    return `Pawn at ${Cell.toString(move.location)} promoted to a ${Piece.toString(promotedPiece)}`;
+  } else if (move.type === 'move') {
+    const isCastle = move.chessMoveType === 'castle';
+    const pieceToCapture = isCastle ? undefined : move.capturingPiece;
+
+    const currentTurn = move.piece.color;
+    return isCastle
+      ? `${currentTurn} castles`
+      : `${currentTurn} moves ${move.piece.type} from ${Cell.toString(move.moveFrom)} to from ${Cell.toString(move.moveTo)}
+          ${pieceToCapture ? ` capturing a ${Piece.toString(pieceToCapture)}` : ''}`;
+  }
 }
 
 export class Board {
-  private static WHITE_PAWN_START_ROW_INDEX = 6;
-  private static BLACK_PAWN_START_ROW_INDEX = 1;
-  private static N_ROWS = 8;
-  private static N_COLS = 8;
+  static N_ROWS = 8;
+  static N_COLS = 8;
+  static WHITE_PAWN_START_ROW_INDEX = 6;
+  static BLACK_PAWN_START_ROW_INDEX = 1;
 
   pieces: BoardPieces;
   currentTurn: BoardColor;
@@ -118,211 +125,88 @@ export class Board {
     return newBoard;
   }
 
-  pieceAtCell(cell: Cell) {
-    return this.pieces[cell.rowIndex][cell.columnIndex];
+  static isCellOnBoard(cell: Cell) {
+    return betweenInclusive(0, cell.rowIndex, Board.N_ROWS - 1) &&
+      betweenInclusive(0, cell.columnIndex, Board.N_COLS - 1);
   }
 
-  isCellOnBoard(cell: Cell) {
-    return betweenInclusive(0, cell.rowIndex, Board.N_ROWS - 1) && betweenInclusive(0, cell.columnIndex, Board.N_COLS - 1);
-  }
-
-  getCellColor(cell: Cell) {
-    return ((cell.columnIndex + cell.rowIndex) % 2 === 0) ? 'black' : 'white';
-  }
-
-  getAvailablePlacesToMoveFrom(selectedCell: Cell): Cell[] {
-    return this._getAvailablePlacesToMoveFrom(selectedCell)
-      .filter(Board.distinctCell);
-  }
-
-  private static distinctCell(currentCell: Cell, index: number, list: Cell[]) {
-    return list.findIndex(cell => cell.equals(currentCell)) === index;
-  }
-
-  private _getAvailablePlacesToMoveFrom(selectedCell: Cell): Cell[] {
-    const selectedPiece = this.pieceAtCell(selectedCell);
-    if (selectedPiece) {
-      const pieceAtCell = { piece: selectedPiece, cell: selectedCell };
-      switch (selectedPiece.type) {
-        case 'pawn':
-          return this.getAvailableMovesForPawn(pieceAtCell);
-        case 'rook':
-          return this.getAvailableMovesForRook(pieceAtCell);
-        case 'bishop':
-          return this.getAvailableMovesForBishop(pieceAtCell);
-        case 'knight':
-          return this.getAvailableMovesForKnight(pieceAtCell);
-        case 'queen':
-          return this.getAvailableMovesForQueen(pieceAtCell);
-        case 'king':
-          return this.getAvailableMovesForKing(pieceAtCell);
-        default:
-          return [];
-      }
+  static isCellAlongFarRowForColor(cell: Cell, color: BoardColor) {
+    if (color === 'black') {
+      return cell.rowIndex === Board.N_ROWS - 1;
+    } else if (color === 'white') {
+      return cell.rowIndex === 0;
     } else {
-      return [];
-    }
-  }
-
-  private getAvailableMovesForPawn(selectedPieceAtCell: PieceAtCell) {
-    const vectorSet = this.getAvailableVectorSetForPawn(selectedPieceAtCell);
-    return [
-      ...this.getAvailableMovesFromVectorSet(selectedPieceAtCell, vectorSet),
-      ...this.getCaptureMovesForPawn(selectedPieceAtCell)
-    ]
-  }
-
-  private getCaptureMovesForPawn(selectedPieceAtCell: PieceAtCell) {
-    if (!selectedPieceAtCell.piece) {
-      return [];
-    }
-
-    const directionOfMovement = selectedPieceAtCell.piece.color === 'white' ? -1 : 1;
-
-    let result: Cell[] = [];
-    for (const vector of [[directionOfMovement, 1], [directionOfMovement, -1]] as Vector[]) {
-      const potentialCell = selectedPieceAtCell.cell.addVector(vector);
-      const pieceAtPotentialCell = this.pieceAtCell(potentialCell);
-      if (pieceAtPotentialCell && pieceAtPotentialCell.color !== selectedPieceAtCell.piece.color) {
-        result.push(potentialCell);
-      }
-    }
-
-    return result;
-  }
-
-  private getAvailableVectorSetForPawn(selectedPieceAtCell: PieceAtCell): Vector[] {
-    switch (selectedPieceAtCell.piece?.color) {
-      case 'white':
-        return selectedPieceAtCell.cell.rowIndex === Board.WHITE_PAWN_START_ROW_INDEX ? [[-2, 0], [-1, 0]] : [[-1, 0]];
-      case 'black':
-        return selectedPieceAtCell.cell.rowIndex === Board.BLACK_PAWN_START_ROW_INDEX ? [[2, 0], [1, 0]] : [[1, 0]];
-      default:
-        return [];
-    }
-  }
-
-  private getAvailableMovesForRook(selectedPieceAtCell: PieceAtCell) {
-    const rooksKing = this.findPiece(Piece.create('king', selectedPieceAtCell.piece.color))
-    const canCastle = rooksKing
-      && !selectedPieceAtCell.piece.hasBeenMoved && !rooksKing.piece.hasBeenMoved
-      && this.noPiecesBetweenExclusive(selectedPieceAtCell.cell, rooksKing.cell);
-    const castleMoves = (rooksKing && canCastle) ? [rooksKing.cell] : []
-
-    return [...castleMoves, ...this.getAvailableMovesAlongVectors(selectedPieceAtCell, [[0, 1], [0, -1], [1, 0], [-1, 0]])];
-  }
-
-  private noPiecesBetweenExclusive(cellA: Cell, cellB: Cell) {
-    try {
-      return this.getCellsBetweenExclusive(cellA, cellB)
-        .every(cell => !this.pieceAtCell(cell));
-    } catch (error) {
-      console.error(error);
       return false;
     }
   }
 
-  private getCellsBetweenExclusive(cellA: Cell, cellB: Cell) {
-    if (cellA.rowIndex === cellB.rowIndex) {
-      const rowIndex = cellA.rowIndex;
-      return rangeAscendingExclusive(cellA.columnIndex, cellB.columnIndex)
-        .map(columnIndex => new Cell(rowIndex, columnIndex));
-    } else if (cellA.columnIndex === cellB.columnIndex) {
-      const columnIndex = cellA.columnIndex;
-      return rangeAscendingExclusive(cellA.rowIndex, cellB.rowIndex)
-        .map(rowIndex => new Cell(rowIndex, columnIndex));
-    } else {
-      throw new Error('Can only compute cells between for cells that are a straight grid line away from each other');
+  static getCellColor(cell: Cell): BoardColor {
+    return ((cell.columnIndex + cell.rowIndex) % 2 === 0) ? 'black' : 'white';
+  }
+
+  constructor(pieces: BoardPieces = startingPosition, currentTurn: BoardColor = 'white') {
+    this.pieces = pieces;
+    const hasAllRowsOfPieces = this.pieces.length === Board.N_ROWS;
+    const hasAllColumnsOfPieces = this.pieces.every(row => row.length === Board.N_COLS)
+    if (!(hasAllRowsOfPieces && hasAllColumnsOfPieces)) {
+      throw new Error(`Supplied board pieces did not fit ${Board.N_ROWS}x${Board.N_COLS} board`)
     }
-
+    this.currentTurn = currentTurn;
   }
 
-  private findPiece(piece: TPiece): PieceAtCell | undefined {
-    for (const rowIndex of rangeInclusive(0, this.pieces.length)) {
-      for (const columnIndex of rangeInclusive(0, this.pieces[rowIndex].length)) {
-        const curPiece = this.pieces[rowIndex][columnIndex];
-        if (curPiece && Piece.equals(piece, curPiece)) {
-          return {
-            piece: curPiece,
-            cell: new Cell(rowIndex, columnIndex)
-          }
-        }
-      }
-    }
+  toBuilder() {
+    return new BoardBuilder(this);
   }
 
-  private getAvailableMovesForBishop(selectedPieceAtCell: PieceAtCell) {
-    return this.getAvailableMovesAlongVectors(selectedPieceAtCell, [[1, 1], [1, -1], [-1, 1], [-1, -1]]);
+  getPiece(cell: Cell) {
+    return Board.isCellOnBoard(cell) ? this.pieces[cell.rowIndex][cell.columnIndex] : undefined;
   }
 
-  private getAvailableMovesForQueen(selectedPieceAtCell: PieceAtCell) {
-    return this.getAvailableMovesAlongVectors(selectedPieceAtCell, [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [1, -1], [-1, 1], [-1, -1]]);
-  }
-
-  private getAvailableMovesForKnight(selectedPieceAtCell: PieceAtCell) {
-    return this.getAvailableMovesFromVectorSet(selectedPieceAtCell, [[2, 1], [-2, 1], [2, -1], [-2, -1], [1, 2], [-1, 2], [1, -2], [-1, -2]]);
-  }
-
-  private getAvailableMovesForKing(selectedPieceAtCell: PieceAtCell) {
-    const castleMoves = this.getAvailableCastleMovesForKing(selectedPieceAtCell);
-
-    return [...castleMoves, ...this.getAvailableMovesFromVectorSet(selectedPieceAtCell, [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [1, -1], [-1, 1], [-1, -1]])];
-  }
-
-  private getAvailableCastleMovesForKing(selectedPieceAtCell: PieceAtCell) {
-    try {
-      const kingsRook = this.findPiece(Piece.create('rook', selectedPieceAtCell.piece.color))
-      const canCastle = kingsRook
-        && !selectedPieceAtCell.piece.hasBeenMoved && !kingsRook.piece.hasBeenMoved
-        && this.noPiecesBetweenExclusive(selectedPieceAtCell.cell, kingsRook.cell);
-      const castleMoves = (kingsRook && canCastle) ? [kingsRook.cell] : [];
-      return castleMoves;
-    } catch (error) {
-      console.error(error);
-      return [];
-    }
-  }
-
-  private getAvailableMovesAlongVectors(selectedPieceAtCell: PieceAtCell, vectors: Vector[]) {
-    return vectors.reduce(
-      (accumulatedMoves, currentVector) => [...accumulatedMoves, ...this.getAvailableMovesAlongVector(selectedPieceAtCell, currentVector)],
-      [] as Cell[]
+  getAllPieceLocations(color?: BoardColor): PieceAtCell[] {
+    const allPiecesWithLocations = this.pieces.map(
+      (row, rowIndex) => row.map(
+        (piece, columnIndex) => ({ piece, cell: { rowIndex, columnIndex } } as PieceAtCell)
+      )
     );
+    const allPlacesThatHavePieces = flattenArray(allPiecesWithLocations)
+      .filter(pieceAtCell => !!pieceAtCell.piece && (color === undefined || pieceAtCell.piece.color === color));
+    return allPlacesThatHavePieces;
   }
 
-  private getAvailableMovesAlongVector(selectedPieceAtCell: PieceAtCell, vector: Vector) {
-    let result: Cell[] = [];
-
-    let currentCell = selectedPieceAtCell.cell;
-    while (true) {
-      currentCell = currentCell.addVector(vector);
-      if (!this.isCellOnBoard(currentCell)) {
-        break;
-      }
-      const pieceAtCurrentCell = this.pieceAtCell(currentCell);
-      if (pieceAtCurrentCell) {
-        if (pieceAtCurrentCell.color !== selectedPieceAtCell.piece?.color) {
-          result.push(currentCell);
-        }
-        break;
-      }
-      result.push(currentCell);
-    }
-
-    return result;
+  getMostRecentMove() {
+    return this.completedMoves[this.completedMoves.length - 1];
   }
 
-  private getAvailableMovesFromVectorSet(selectedPieceAtCell: PieceAtCell, vectorSet: Vector[]) {
-    let result: Cell[] = [];
+  colorWhoJustMovedIsInCheck() {
+    const colorWhoJustMoved = otherColor(this.currentTurn);
+    return this.isInCheck(colorWhoJustMoved);
+  }
 
-    for (const vector of vectorSet) {
-      const currentCell = selectedPieceAtCell.cell.addVector(vector);
-      if (this.isCellOnBoard(currentCell) && this.pieceAtCell(currentCell)?.color !== selectedPieceAtCell.piece?.color) {
-        result.push(currentCell);
+  isInCheck(color: BoardColor) {
+    const allOpposingMoves = this.getAllAvailableMovesForColor(otherColor(color));
+    return allOpposingMoves.some(isCaptureOfKingOfColor(color));
+  }
+
+  getColorThatIsInCheckMate(): BoardColor | undefined {
+    const colorToTest = this.currentTurn;
+    if (this.isInCheck(colorToTest)) {
+      const allMovesForColor = this.getAllAvailableMovesForColor(colorToTest);
+      const allMovesResultInCheck = allMovesForColor.every(potentialMove => {
+        const boardAfterPotentialMove = boardReducer(this, { type: 'move', ...potentialMove });
+        return boardAfterPotentialMove.isInCheck(colorToTest)
+      })
+      if (allMovesResultInCheck) {
+        return colorToTest;
       }
     }
+    return undefined;
+  }
 
-    return result;
+  private getAllAvailableMovesForColor(color: BoardColor) {
+    const piecesForColor = this.getAllPieceLocations(color);
+    const availableMovesService = new AvailableMovesService(this);
+    const allMovesForColor = flattenArray(piecesForColor.map(piece => availableMovesService.getAvailablePlacesToMoveFrom(piece.cell)));
+    return allMovesForColor;
   }
 
 }
@@ -340,7 +224,7 @@ class BoardBuilder extends Board {
     return board;
   }
 
-  modifyPieceAtCell(cell: Cell, piece?: TPiece) {
+  setPieceOnCell(cell: Cell, newPiece?: TPiece | null) {
     this.pieces = this.pieces.map((row, rowI) => rowI !== cell.rowIndex ? row :
       row.map((col, colI) => colI !== cell.columnIndex ? col :
         piece && {
@@ -352,26 +236,84 @@ class BoardBuilder extends Board {
     return this;
   }
 
-  capturePiece(piece?: TPiece) {
+  capturePiece(piece?: TPiece | null) {
     if (piece) {
       if (piece.color === this.currentTurn) {
         throw new Error(`Attempted to capture a piece of your own color`);
       }
-      if (this.currentTurn === 'black') {
-        this.blackScore += Piece.getRelativeValue(piece);
-        this.piecesCapturedByBlack = [...this.piecesCapturedByBlack, piece];
-        if (piece.type === 'king') {
-          this.winner = 'black'
-        }
-      } else if (this.currentTurn === 'white') {
-        this.whiteScore += Piece.getRelativeValue(piece);
-        this.piecesCapturedByWhite = [...this.piecesCapturedByWhite, piece];
-        if (piece.type === 'king') {
-          this.winner = 'white'
-        }
+
+      return this
+        .addToCapturedPieces(this.currentTurn, piece)
+        .addToScore(this.currentTurn, Piece.getRelativeValue(piece));
+    }
+
+    return this;
+  }
+
+  checkAndSetWinner() {
+    this.winner = this.getWinner();
+    return this;
+  }
+
+  private getWinner() {
+    if (this.hasCapturedOpposingKing('white')) {
+      return 'white'
+    } else if (this.hasCapturedOpposingKing('black')) {
+      return 'black'
+    } else {
+      const colorThatIsInCheckMate = this.getColorThatIsInCheckMate();
+      if (colorThatIsInCheckMate) {
+        return otherColor(colorThatIsInCheckMate)
+      }
+    }
+  }
+
+  private hasCapturedOpposingKing(capturingColor: BoardColor) {
+    const capturedPieces = capturingColor === 'white' ? this.piecesCapturedByWhite : this.piecesCapturedByBlack;
+    return capturedPieces.some(piece => piece.type === 'king' && piece.color === otherColor(capturingColor));
+  }
+
+  uncapturePiece(piece?: TPiece) {
+    if (piece) {
+      if (piece.color === this.currentTurn) {
+        throw new Error(`Cannot capture a piece of the same color: ${this.currentTurn} attempted to capture a ${piece.color} piece`);
+      }
+
+      this.addToScore(this.currentTurn, -1 * Piece.getRelativeValue(piece));
+      this.removeFromCapturedPieces(this.currentTurn, piece);
+
+      if (piece.type === 'king') {
+        this.winner = undefined;
       }
     }
 
+    return this;
+  }
+
+  addToScore(scoreToChange: BoardColor, amountToChangeScoreBy: number) {
+    if (scoreToChange === 'black') {
+      this.blackScore += amountToChangeScoreBy;
+    } else if (scoreToChange === 'white') {
+      this.whiteScore += amountToChangeScoreBy;
+    }
+    return this;
+  }
+
+  addToCapturedPieces(capturer: BoardColor, capturedPiece: TPiece) {
+    if (capturer === 'black') {
+      this.piecesCapturedByBlack = [...this.piecesCapturedByBlack, capturedPiece];
+    } else if (capturer === 'white') {
+      this.piecesCapturedByWhite = [...this.piecesCapturedByWhite, capturedPiece];
+    }
+    return this;
+  }
+
+  removeFromCapturedPieces(capturer: BoardColor, uncapturedPiece: TPiece) {
+    if (capturer === 'black') {
+      this.piecesCapturedByBlack = this.piecesCapturedByBlack.filter(p => !Piece.equals(p, uncapturedPiece));
+    } else if (capturer === 'white') {
+      this.piecesCapturedByWhite = this.piecesCapturedByWhite.filter(p => !Piece.equals(p, uncapturedPiece));
+    }
     return this;
   }
 
@@ -382,6 +324,11 @@ class BoardBuilder extends Board {
 
   recordMove(move: BoardMove) {
     this.completedMoves = [...this.completedMoves, move];
+    return this;
+  }
+
+  removeMostRecentMove() {
+    this.completedMoves = this.completedMoves.slice(0, -1);
     return this;
   }
 }

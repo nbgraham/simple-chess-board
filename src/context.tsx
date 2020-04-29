@@ -1,12 +1,15 @@
 import React, { useEffect, useMemo, useState, useContext, useCallback } from 'react';
 import { Board, BoardReducerAction, useBoardReducer } from './models/board';
 import { Cell } from './models/cell';
+import { ChessMove } from './models/chess_move';
+import { boardReducer, BoardReducerAction } from './reducers/board_reducer';
+import { AvailableMovesService } from './services/available_moves';
 
 type TBoardContext = {
     board: Board;
     selectedCell?: Cell;
     setSelectedCell: (selectedCell?: Cell) => void;
-    availablePlacesToMove: Cell[];
+    availablePlacesToMove: ChessMove[];
     dispatchAction: (action: BoardReducerAction) => void;
 }
 const BoardContext = React.createContext<TBoardContext>({
@@ -20,12 +23,19 @@ export const useBoardContext = () => useContext(BoardContext);
 type BoardContextProviderProps = {
     children: React.ReactNode;
 }
-export const BoardContextProvider = ({children}: BoardContextProviderProps) => {
-    const [board, dispatchAction] = useBoardReducer();
+export const BoardContextProvider = ({ children }: BoardContextProviderProps) => {
+    const [board, dispatchAction] = useReducer(boardReducer, getInitialBoard());
     const [selectedCell, setSelectedCell] = useState<Cell | undefined>();
-    const [availablePlacesToMove, setAvailablePlacesToMove] = useState<Cell[]>([]);
+    const [availablePlacesToMove, setAvailablePlacesToMove] = useState<ChessMove[]>([]);
 
-    useEffect(() => setSelectedCell(undefined), [board]);
+    useEffect(() => {
+        if (board.colorWhoJustMovedIsInCheck()) {
+            dispatchAction({ type: 'undo' });
+        }
+        sessionStorage.setItem(SESSION_STORAGE_BOARD_KEY, JSON.stringify(board));
+        setSelectedCell(undefined)
+    }, [board]);
+
     useEffect(() => {
         if (selectedCell) {
             const newAvailablePlacesToMove = board.getAvailablePlacesToMoveFrom(selectedCell);
@@ -37,13 +47,12 @@ export const BoardContextProvider = ({children}: BoardContextProviderProps) => {
 
     const tryToSelectCell = useCallback(
         (cellToSelect?: Cell) => {
-            if (cellToSelect) {
-                const currentPiece = board.pieceAtCell(cellToSelect);
-                if (!!currentPiece && currentPiece.color === board.currentTurn) {
-                    setSelectedCell(cellToSelect);
-                }
-            } else {
-                setSelectedCell(cellToSelect);
+            if (cellToSelect === undefined) {
+                return setSelectedCell(undefined);
+            }
+            const currentPiece = board.getPiece(cellToSelect);
+            if (!!currentPiece && currentPiece.color === board.currentTurn) {
+                return setSelectedCell(cellToSelect);
             }
         },
         [board, setSelectedCell]
