@@ -1,0 +1,5 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`new game resets 1`] = `Object {}`;
+
+exports[`redo 1`] = `Object {}`;

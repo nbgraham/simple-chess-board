@@ -1,12 +1,18 @@
-import React, { useEffect, useMemo, useState, useContext, useCallback } from 'react';
-import { Board, BoardReducerAction, useBoardReducer } from './models/board';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { SESSION_STORAGE_BOARD_KEY } from './constants';
+import { Board } from './models/board';
 import { Cell } from './models/cell';
 import { ChessMove } from './models/chess_move';
 import { boardReducer, BoardReducerAction } from './reducers/board_reducer';
 import { AvailableMovesService } from './services/available_moves';
+import { useRewindableReducer, SaveOptions } from './hooks/use_rewindable_reducer';
 
 type TBoardContext = {
     board: Board;
+    moveHistory: BoardReducerAction[]
+    resetBoard: () => void;
+    undoLastMove: () => void;
+    redoMove: () => void;
     selectedCell?: Cell;
     setSelectedCell: (selectedCell?: Cell) => void;
     availablePlacesToMove: ChessMove[];
@@ -14,31 +20,48 @@ type TBoardContext = {
 }
 const BoardContext = React.createContext<TBoardContext>({
     board: new Board(),
+    moveHistory: [],
+    resetBoard: () => { },
+    undoLastMove: () => { },
+    redoMove: () => {},
     setSelectedCell: (_) => { },
     availablePlacesToMove: [],
     dispatchAction: (_) => { }
 });
 
+const initialBoard = new Board()
+const saveOptions: Partial<SaveOptions<Board, BoardReducerAction>> = {
+    saveKey: 'chess-board',
+    deserializeState: Board.fromJSON
+}
 export const useBoardContext = () => useContext(BoardContext);
 type BoardContextProviderProps = {
     children: React.ReactNode;
 }
 export const BoardContextProvider = ({ children }: BoardContextProviderProps) => {
-    const [board, dispatchAction] = useReducer(boardReducer, getInitialBoard());
+    const {
+        state: board,
+        dispatch: dispatchAction,
+        undo: undoLastMove,
+        redo: redoMove,
+        reset: resetBoard,
+        pastActions: moveHistory
+    } = useRewindableReducer(boardReducer, initialBoard, saveOptions);
     const [selectedCell, setSelectedCell] = useState<Cell | undefined>();
     const [availablePlacesToMove, setAvailablePlacesToMove] = useState<ChessMove[]>([]);
 
     useEffect(() => {
         if (board.colorWhoJustMovedIsInCheck()) {
-            dispatchAction({ type: 'undo' });
+            undoLastMove()
         }
         sessionStorage.setItem(SESSION_STORAGE_BOARD_KEY, JSON.stringify(board));
         setSelectedCell(undefined)
-    }, [board]);
+    }, [board, undoLastMove]);
 
     useEffect(() => {
         if (selectedCell) {
-            const newAvailablePlacesToMove = board.getAvailablePlacesToMoveFrom(selectedCell);
+            const service = new AvailableMovesService(board);
+            const newAvailablePlacesToMove = service.getAvailablePlacesToMoveFrom(selectedCell);
             setAvailablePlacesToMove(newAvailablePlacesToMove);
         } else {
             setAvailablePlacesToMove([]);
@@ -58,8 +81,8 @@ export const BoardContextProvider = ({ children }: BoardContextProviderProps) =>
         [board, setSelectedCell]
     )
     const boardContextValue: TBoardContext = useMemo(() => ({
-        board, selectedCell, setSelectedCell: tryToSelectCell, availablePlacesToMove, dispatchAction
-    }), [board, selectedCell, tryToSelectCell, availablePlacesToMove, dispatchAction]);
+        board, resetBoard, undoLastMove, selectedCell, setSelectedCell: tryToSelectCell, availablePlacesToMove, dispatchAction, moveHistory, redoMove
+    }), [board, resetBoard, undoLastMove, selectedCell, tryToSelectCell, availablePlacesToMove, dispatchAction, moveHistory, redoMove]);
 
     return (
         <BoardContext.Provider value={boardContextValue}>

@@ -62,6 +62,7 @@ export const CellComponent = ({ rowIndex, columnIndex }: CellProps) => {
         <div
             className={`cell boardColor${cellBoardColor} ${isSelected ? 'selected' : ''} ${isAvailableToMoveTo ? 'available' : ''}`}
             onClick={isPromotablePawn ? undefined : isAvailableToMoveTo ? moveToCell : toggleSelected}
+            data-testid={Cell.toString(thisCell)}
         >
             {
                 isPromotablePawn && currentPiece

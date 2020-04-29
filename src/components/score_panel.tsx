@@ -1,21 +1,22 @@
-import React, { useCallback } from 'react';
+import React from 'react';
 import { useBoardContext } from '../context';
 import { TPiece, Piece } from '../models/piece';
 import { PieceIcon } from './piece_icon';
 import { BoardColor, BoardMove, getMoveDescription } from '../models/board';
 
+const buttonStyle: React.CSSProperties = { fontSize: 20, margin: 5 };
+
 export const ScorePanel = () => {
-  const { board, dispatchAction } = useBoardContext();
-  const resetBoard = useCallback(() => dispatchAction({ type: 'reset' }), [dispatchAction]);
-  const undoLastMove = useCallback(() => dispatchAction({ type: 'undo' }), [dispatchAction]);
+  const { board, resetBoard, undoLastMove, redoMove, moveHistory } = useBoardContext();
 
   const scoreBoardSectionStyle: React.CSSProperties = { flex: 2, margin: 12 };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column' }}>
       <div style={scoreBoardSectionStyle}>
-        <button onClick={resetBoard} style={{ fontSize: 20, margin: 5 }}>New Game</button>
-        <button onClick={undoLastMove} style={{ fontSize: 20, margin: 5 }}>Undo Move</button>
+        <button onClick={resetBoard} style={buttonStyle}>New Game</button>
+        <button onClick={undoLastMove} style={buttonStyle}>Undo Move</button>
+        <button onClick={redoMove} style={buttonStyle}>Redo Move</button>
       </div>
       <div style={scoreBoardSectionStyle}>
         {board.winner
@@ -34,7 +35,7 @@ export const ScorePanel = () => {
         </div>
       </div>
       <div style={{ ...scoreBoardSectionStyle }}>
-        <MoveHistory completedMoves={board.completedMoves} />
+        <MoveHistory completedMoves={moveHistory} />
       </div>
     </div>
   );

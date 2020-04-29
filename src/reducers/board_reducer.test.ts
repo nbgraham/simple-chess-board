@@ -30,8 +30,6 @@ test('first move works', () => {
     expect(boardAfterMove.piecesCapturedByWhite).toEqual([])
     expect(boardAfterMove.blackScore).toBe(0);
     expect(boardAfterMove.piecesCapturedByBlack).toEqual([])
-
-    testReset(boardAfterMove);
 });
 
 test('capture', () => {
@@ -73,16 +71,4 @@ test('capture', () => {
     expect(boardAfterMove.piecesCapturedByWhite).toEqual([m('⚫♟')])
     expect(boardAfterMove.blackScore).toBe(0);
     expect(boardAfterMove.piecesCapturedByBlack).toEqual([])
-
-    testReset(boardAfterMove);
 });
-
-const testReset = (board: Board) => {
-    const boardAfterReset = boardReducer(board, { type: 'reset' });
-    expect(flattenArray(boardAfterReset.pieces).every(p => !p || !p.hasBeenMoved)).toBe(true);
-    expect(boardAfterReset.pieces).toEqual(startingPosition);
-    expect(boardAfterReset.whiteScore).toBe(0);
-    expect(boardAfterReset.piecesCapturedByWhite).toEqual([])
-    expect(boardAfterReset.blackScore).toBe(0);
-    expect(boardAfterReset.piecesCapturedByBlack).toEqual([])
-}

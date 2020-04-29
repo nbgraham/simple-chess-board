@@ -1,13 +1,13 @@
 import { ChessMoveAction, PromotePawnAction, boardReducer } from '../reducers/board_reducer';
 import { AvailableMovesService } from '../services/available_moves';
-import { flattenArray } from '../utils/array_utils';
+import { flattenArray, arraysContainSameItems } from '../utils/array_utils';
 import { Cell } from './cell';
 import { isCaptureOfKingOfColor } from './chess_move';
-import { Piece, TPiece } from './piece';
-import { LETTERS_FOR_COLUMNS } from '../constants';
+import { Piece, TPiece, PieceType } from './piece';
+import { LETTERS_FOR_COLUMNS, SESSION_STORAGE_BOARD_KEY } from '../constants';
 import { betweenInclusive } from '../utils/range_utils';
-import { u, e } from './piece_shorthand';
 import { startingPosition } from './arrangements';
+import { useReducer } from 'react';
 
 export type BoardColor = 'black' | 'white';
 export type BoardPieces = (TPiece | undefined | null)[][];
@@ -57,15 +57,7 @@ export class Board {
   blackScore = 0;
   piecesCapturedByBlack = [] as TPiece[];
 
-  constructor(pieces: BoardPieces = initialBoardPieces, currentTurn: BoardColor = 'white') {
-    this.pieces = pieces;
-    this.currentTurn = currentTurn;
-  }
-
-  toBuilder() {
-    return new BoardBuilder(this);
-  }
-
+  
   static boardReducer(board: Board, move: BoardReducerAction) {
     const nextBoard = Board._boardReducer(board, move);
     sessionStorage.setItem(SESSION_STORAGE_BOARD_KEY, JSON.stringify(nextBoard));
@@ -117,7 +109,7 @@ export class Board {
       .recordMove({ ...move, description })
       .toBoard();
   }
-
+  
   static fromJSON(jsonBoard: string) {
     const boardFromJson = JSON.parse(jsonBoard);
     const newBoard = new Board();
@@ -173,10 +165,6 @@ export class Board {
     return allPlacesThatHavePieces;
   }
 
-  getMostRecentMove() {
-    return this.completedMoves[this.completedMoves.length - 1];
-  }
-
   colorWhoJustMovedIsInCheck() {
     const colorWhoJustMoved = otherColor(this.currentTurn);
     return this.isInCheck(colorWhoJustMoved);
@@ -227,8 +215,8 @@ class BoardBuilder extends Board {
   setPieceOnCell(cell: Cell, newPiece?: TPiece | null) {
     this.pieces = this.pieces.map((row, rowI) => rowI !== cell.rowIndex ? row :
       row.map((col, colI) => colI !== cell.columnIndex ? col :
-        piece && {
-          ...piece,
+        newPiece && {
+          ...newPiece,
           hasBeenMoved: true,
         }
       )
@@ -319,11 +307,6 @@ class BoardBuilder extends Board {
 
   switchTurns() {
     this.currentTurn = otherColor(this.currentTurn);
-    return this;
-  }
-
-  recordMove(move: BoardMove) {
-    this.completedMoves = [...this.completedMoves, move];
     return this;
   }
 

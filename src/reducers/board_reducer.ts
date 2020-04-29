@@ -1,4 +1,4 @@
-import { Board, BoardColor, BoardMove } from '../models/board';
+import { Board, BoardColor } from '../models/board';
 import { Piece, PieceType } from '../models/piece';
 import { Cell } from '../models/cell';
 import { ChessMove } from '../models/chess_move';
@@ -13,13 +13,7 @@ export type PromotePawnAction = {
   pieceColor: BoardColor;
   promotedTo: PieceType;
 };
-export type ResetAction = {
-  type: 'reset'
-}
-export type UndoLastMoveAction = {
-  type: 'undo'
-}
-export type BoardReducerAction = UndoLastMoveAction | ChessMoveAction | PromotePawnAction | ResetAction;
+export type BoardReducerAction =  ChessMoveAction | PromotePawnAction;
 
 export function boardReducer(previousBoard: Board, action: BoardReducerAction) {
   switch (action.type) {
@@ -27,15 +21,9 @@ export function boardReducer(previousBoard: Board, action: BoardReducerAction) {
       const promotedPiece = Piece.create(action.promotedTo, action.pieceColor);
       return previousBoard.toBuilder()
         .setPieceOnCell(action.location, promotedPiece)
-        .recordMove(action)
         .toBoard();
     case 'move':
       return moveActionReducer(previousBoard, action);
-    case 'reset':
-      return new Board();
-    case 'undo':
-      const mostRecentMove = previousBoard.getMostRecentMove();
-      return boardUnreducer(previousBoard, mostRecentMove);
     default:
       console.error('Unknown action', JSON.stringify(action));
       return previousBoard;
@@ -71,7 +59,6 @@ function moveActionReducer(previousBoard: Board, action: ChessMoveAction) {
     .setPieceOnCell(action.moveTo, currentPieceAtFromLocation)
     .switchTurns()
     .checkAndSetWinner()
-    .recordMove(action)
     .toBoard();
 }
 

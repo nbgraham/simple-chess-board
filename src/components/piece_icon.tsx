@@ -1,5 +1,5 @@
 import React from 'react';
-import { TPiece, PieceType } from '../models/piece';
+import { TPiece, PieceType, Piece } from '../models/piece';
 import { BoardColor } from '../models/board';
 
 type PieceIconProps = {
@@ -13,7 +13,7 @@ export const PieceIcon = (props: PieceIconProps) => {
         <img
             {...passthroughProps}
             src={getPieceImgUrl(piece)}
-            alt={piece.toString()}
+            alt={Piece.toString(piece)}
         />
     );
 }
