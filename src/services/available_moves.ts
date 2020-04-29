@@ -26,6 +26,12 @@ export class AvailableMovesService {
     this.board = board;
   }
 
+  getAllAvailableMoves(): (ChessMove[])[][] {
+    return this.board.pieces.map((row, rowIndex) =>
+      row.map((cell, columnIndex) => this.getAvailablePlacesToMoveFrom({ rowIndex, columnIndex }))
+    )
+  }
+
   getAvailablePlacesToMoveFrom(selectedCell: Cell): ChessMove[] {
     return this._getAvailablePlacesToMoveFrom(selectedCell)
       .filter(distinctFilter(chessMoveEqual));

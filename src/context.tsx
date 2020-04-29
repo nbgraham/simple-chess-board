@@ -1,11 +1,8 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { SESSION_STORAGE_BOARD_KEY } from './constants';
 import { Board } from './models/board';
 import { Cell } from './models/cell';
-import { ChessMove } from './models/chess_move';
-import { boardReducer } from './reducers/board_reducer';
-import { AvailableMovesService } from './services/available_moves';
-import { useRewindableReducer, SaveOptions } from './hooks/use_rewindable_reducer';
+import { ChessMove, fromSerDeClass } from './models/chess_move';
+import { API_CLIENT } from './api_client';
 
 type TBoardContext = {
     board: Board;
@@ -23,45 +20,42 @@ const BoardContext = React.createContext<TBoardContext>({
     moveHistory: [],
     resetBoard: () => { },
     undoLastMove: () => { },
-    redoMove: () => {},
+    redoMove: () => { },
     setSelectedCell: (_) => { },
     availablePlacesToMove: [],
     dispatchAction: (_) => { }
 });
 
 const initialBoard = new Board()
-const saveOptions: Partial<SaveOptions<Board, ChessMove>> = {
-    saveKey: 'chess-board',
-    deserializeState: Board.fromJSON
-}
 export const useBoardContext = () => useContext(BoardContext);
 type BoardContextProviderProps = {
     children: React.ReactNode;
 }
 export const BoardContextProvider = ({ children }: BoardContextProviderProps) => {
-    const {
-        state: board,
-        dispatch: dispatchAction,
-        undo: undoLastMove,
-        redo: redoMove,
-        reset: resetBoard,
-        pastActions: moveHistory
-    } = useRewindableReducer(boardReducer, initialBoard, saveOptions);
+    const [board, setBoard] = useState(initialBoard);
+    const [moveHistory, setMoveHistory] = useState([] as ChessMove[]);
+
+    useEffect(
+        () => {
+            const subscription = API_CLIENT.subcribeToBoard(b => {
+                setBoard(b.currentState)
+                setMoveHistory(b.pastActions.map(fromSerDeClass))
+            })
+            return subscription.unsubscribe;
+        },
+        []
+    )
+
     const [selectedCell, setSelectedCell] = useState<Cell | undefined>();
     const [availablePlacesToMove, setAvailablePlacesToMove] = useState<ChessMove[]>([]);
 
     useEffect(() => {
-        if (board.colorWhoJustMovedIsInCheck()) {
-            undoLastMove()
-        }
-        sessionStorage.setItem(SESSION_STORAGE_BOARD_KEY, JSON.stringify(board));
         setSelectedCell(undefined)
-    }, [board, undoLastMove]);
+    }, [board]);
 
     useEffect(() => {
         if (selectedCell) {
-            const service = new AvailableMovesService(board);
-            const newAvailablePlacesToMove = service.getAvailablePlacesToMoveFrom(selectedCell);
+            const newAvailablePlacesToMove = board.availableMoves[selectedCell.rowIndex][selectedCell.columnIndex];
             setAvailablePlacesToMove(newAvailablePlacesToMove);
         } else {
             setAvailablePlacesToMove([]);
@@ -80,9 +74,23 @@ export const BoardContextProvider = ({ children }: BoardContextProviderProps) =>
         },
         [board, setSelectedCell]
     )
+    
+    const dispatchAction = useCallback((move: ChessMove) => API_CLIENT.sendMove(move), [])
+    const resetBoard = useCallback(() => API_CLIENT.resetBoard(), [])
+    const undoLastMove = useCallback(() => API_CLIENT.undoMove(), [])
+    const redoMove = useCallback(() => API_CLIENT.redoMove(), [])
+
     const boardContextValue: TBoardContext = useMemo(() => ({
-        board, resetBoard, undoLastMove, selectedCell, setSelectedCell: tryToSelectCell, availablePlacesToMove, dispatchAction, moveHistory, redoMove
-    }), [board, resetBoard, undoLastMove, selectedCell, tryToSelectCell, availablePlacesToMove, dispatchAction, moveHistory, redoMove]);
+        board,
+        selectedCell,
+        availablePlacesToMove,
+        moveHistory,
+        setSelectedCell: tryToSelectCell,
+        resetBoard,
+        undoLastMove,
+        dispatchAction,
+        redoMove,
+    }), [board, selectedCell, availablePlacesToMove, moveHistory, tryToSelectCell, resetBoard, undoLastMove, dispatchAction, redoMove]);
 
     return (
         <BoardContext.Provider value={boardContextValue}>

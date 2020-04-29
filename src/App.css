@@ -50,6 +50,10 @@
   border: 3px green dotted;
 }
 
+.cell.lastMoved {
+  border: 3px blue dashed;
+}
+
 .App {
   text-align: center;
 }

@@ -3,6 +3,7 @@ import './App.css';
 import { BoardComponent } from './components/board';
 import { BoardContextProvider } from './context';
 import { ScorePanel } from './components/score_panel';
+import { API_CLIENT } from './api_client';
 
 type AppState = {
   hasError: boolean
@@ -20,7 +21,7 @@ class App extends React.Component<{}, AppState> {
   reload = () => this.setState({ hasError: false })
 
   reset = () => {
-    sessionStorage.clear()
+    API_CLIENT.resetBoard()
     this.reload();
   }
 

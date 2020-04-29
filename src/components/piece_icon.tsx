@@ -41,4 +41,4 @@ const getPieceKey = (type: PieceType) => {
 }
 
 const getPieceImgUrlFromAssets = (pieceId: string, color: BoardColor) =>
-    require(`../assets/chess_pieces/Chess_${pieceId}${color === 'white' ? 'l' : 'd'}t45.svg`);
+    pieceId && color && require(`../assets/chess_pieces/Chess_${pieceId}${color === 'white' ? 'l' : 'd'}t45.svg`);

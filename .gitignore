@@ -10,6 +10,9 @@
 
 # production
 /build
+/api-build
+
+*.temp.json
 
 # misc
 .DS_Store

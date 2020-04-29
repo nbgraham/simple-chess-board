@@ -1,8 +1,10 @@
 import React from 'react';
 import { render, fireEvent, Matcher } from '@testing-library/react';
 import App from './App';
+import { API_CLIENT } from './api_client';
+jest.mock('./api_client')
 
-beforeEach(() => sessionStorage.clear())
+beforeEach(() => API_CLIENT.resetBoard())
 
 test('renders app', () => {
   const { getByText, getByTestId } = render(<App />);
@@ -44,7 +46,7 @@ test('fastest checkmate', () => {
   expect(getByText(/turn: black/i)).toBeInTheDocument()
 });
 
-test('resume from session storage', () => {
+test('resume from API', () => {
   const { getByText, getByTestId, unmount } = render(<App />);
   const movePiece = createMovePiece(getByTestId)
 
@@ -59,9 +61,9 @@ test('resume from session storage', () => {
   const { getByTestId: getByTestId1, unmount: unmount1 } = render(<App />);
   expectToHavePiece(getByTestId1('f4'), 'white pawn')
   expectToHavePiece(getByTestId1('e5'), 'black pawn')
-
-  sessionStorage.clear()
   unmount1()
+
+  API_CLIENT.resetBoard()
 
   const { getByTestId: getByTestId2 } = render(<App />);
   expectToHaveNoPiece(getByTestId2('f4'))

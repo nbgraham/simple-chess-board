@@ -1,16 +1,17 @@
 import { boardReducer } from '../reducers/board_reducer';
 import { AvailableMovesService } from '../services/available_moves';
-import { flattenArray, arraysContainSameItems } from '../utils/array_utils';
+import { flattenArray } from '../utils/array_utils';
 import { Cell } from './cell';
-import { isCaptureOfKingOfColor } from './chess_move';
-import { Piece, TPiece, PieceType } from './piece';
-import { LETTERS_FOR_COLUMNS, SESSION_STORAGE_BOARD_KEY } from '../constants';
+import { isCaptureOfKingOfColor, ChessMove } from './chess_move';
+import { Piece, TPiece } from './piece';
+import { LETTERS_FOR_COLUMNS } from '../constants';
 import { betweenInclusive } from '../utils/range_utils';
 import { startingPosition } from './arrangements';
 import { boardToShorthand } from './piece_shorthand';
 
 export type BoardColor = 'black' | 'white';
 export type BoardPieces = (TPiece | undefined | null)[][];
+export type BoardAvailableMoves = (ChessMove[])[][]
 
 export type PieceAtCell = {
   cell: Cell;
@@ -30,8 +31,8 @@ export class Board {
   pieces: BoardPieces;
   currentTurn: BoardColor;
   winner?: BoardColor;
-
-  completedMoves = [] as BoardMove[];
+  lastMovedPiece?: PieceAtCell;
+  availableMoves: BoardAvailableMoves = []
 
   whiteScore = 0;
   piecesCapturedByWhite = [] as TPiece[];
@@ -39,59 +40,6 @@ export class Board {
   blackScore = 0;
   piecesCapturedByBlack = [] as TPiece[];
 
-  
-  static boardReducer(board: Board, move: BoardReducerAction) {
-    const nextBoard = Board._boardReducer(board, move);
-    sessionStorage.setItem(SESSION_STORAGE_BOARD_KEY, JSON.stringify(nextBoard));
-    return nextBoard;
-  }
-
-  static _boardReducer(board: Board, move: BoardReducerAction) {
-    if (move.type === 'reset') {
-      return new Board();
-    }
-
-    if (move.type === 'promote_pawn') {
-      const description = `Pawn at ${move.location} promoted to a ${Piece.toString(move.promotedPiece)}`;
-      return board.toBuilder()
-        .modifyPieceAtCell(move.location, move.promotedPiece)
-        .recordMove({ ...move, description })
-        .toBoard();
-    }
-
-    if (move.locationToMoveFrom.equals(move.locationToMoveTo)) {
-      throw new Error(`Attempted to move a piece to the place it already is at ${move.locationToMoveFrom}`);
-    }
-    const currentPieceAtFromLocation = board.pieceAtCell(move.locationToMoveFrom);
-    const currentPieceAtToLocation = board.pieceAtCell(move.locationToMoveTo);
-    if (!currentPieceAtFromLocation) {
-      throw new Error(`Attempted to move a non existent piece at ${move.locationToMoveFrom}`);
-    }
-    let isCastle = false;
-    if (currentPieceAtFromLocation?.color === currentPieceAtToLocation?.color) {
-      if (arraysContainSameItems(['rook', 'king'], [currentPieceAtFromLocation.type, currentPieceAtToLocation.type])) {
-        isCastle = true;
-      } else {
-        throw new Error(`Attempted to move a piece at ${move.locationToMoveFrom} onto a piece of the same color at ${move.locationToMoveTo}`)
-      }
-    }
-
-    const pieceToCapture = isCastle ? undefined : currentPieceAtToLocation;
-    const pieceToLeaveBehind = isCastle ? currentPieceAtToLocation : undefined;
-
-    const description = isCastle
-      ? `${board.currentTurn} castles`
-      : `${board.currentTurn} moves ${currentPieceAtFromLocation.type} from ${move.locationToMoveFrom} to from ${move.locationToMoveTo}
-          ${pieceToCapture ? ` capturing a ${Piece.toString(pieceToCapture)}` : ''}`;
-    return board.toBuilder()
-      .modifyPieceAtCell(move.locationToMoveFrom, pieceToLeaveBehind)
-      .capturePiece(pieceToCapture)
-      .modifyPieceAtCell(move.locationToMoveTo, currentPieceAtFromLocation)
-      .switchTurns()
-      .recordMove({ ...move, description })
-      .toBoard();
-  }
-  
   static fromJSON(jsonBoard: string) {
     const boardFromJson = JSON.parse(jsonBoard);
     const newBoard = new Board();
@@ -171,7 +119,7 @@ export class Board {
     if (this.isInCheck(colorToTest)) {
       const allMovesForColor = this.getAllAvailableMovesForColor(colorToTest);
       const allMovesResultInCheck = allMovesForColor.every(potentialMove => {
-        const boardAfterPotentialMove = boardReducer(this, { type: 'move', ...potentialMove });
+        const boardAfterPotentialMove = boardReducer(this, { ...potentialMove, skipWinnerComputation: true });
         return boardAfterPotentialMove.isInCheck(colorToTest)
       })
       if (allMovesResultInCheck) {
@@ -216,13 +164,16 @@ class BoardBuilder extends Board {
         }
       )
     );
+    if (newPiece) {
+      this.lastMovedPiece = { piece: newPiece, cell}
+    }
     return this;
   }
 
   capturePiece(piece?: TPiece | null) {
     if (piece) {
       if (piece.color === this.currentTurn) {
-        throw new Error(`Attempted to capture a piece of your own color`);
+        throw new Error(`Cannot capture a piece of the same color: ${this.currentTurn} attempted to capture a ${piece.color} piece`);
       }
 
       return this
@@ -233,8 +184,16 @@ class BoardBuilder extends Board {
     return this;
   }
 
-  checkAndSetWinner() {
-    this.winner = this.getWinner();
+  checkAndSetWinner({skip}: Partial<{skip: boolean}>) {
+    if (!skip) {
+      this.winner = this.getWinner();
+    }
+    return this;
+  }
+
+  setAvailableMoves() {
+    const availableMovesService = new AvailableMovesService(this);
+    this.availableMoves = availableMovesService.getAllAvailableMoves()
     return this;
   }
 
@@ -305,19 +264,3 @@ class BoardBuilder extends Board {
     return this;
   }
 }
-
-const initialBoardPieces: BoardPieces = [
-  (['rook', 'knight', 'bishop', 'queen', 'king', 'bishop', 'knight', 'rook'] as PieceType[]).map((type) => Piece.create(type, 'black')),
-  (['pawn', 'pawn', 'pawn', 'pawn', 'pawn', 'pawn', 'pawn', 'pawn'] as PieceType[]).map((type) => Piece.create(type, 'black')),
-  [undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined],
-  [undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined],
-  [undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined],
-  [undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined],
-  (['pawn', 'pawn', 'pawn', 'pawn', 'pawn', 'pawn', 'pawn', 'pawn'] as PieceType[]).map((type) => Piece.create(type, 'white')),
-  (['pawn', 'knight', 'bishop', 'queen', 'king', 'bishop', 'knight', 'rook'] as PieceType[]).map((type) => Piece.create(type, 'white')),
-]
-
-const savedBoardJson = sessionStorage.getItem(SESSION_STORAGE_BOARD_KEY);
-const initialBoard: Board = savedBoardJson ? Board.fromJSON(savedBoardJson) : new Board();
-
-export const useBoardReducer = () => useReducer(Board.boardReducer, initialBoard);

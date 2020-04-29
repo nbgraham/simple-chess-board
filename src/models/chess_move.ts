@@ -1,8 +1,9 @@
 import { Cell } from './cell';
 import { TPiece, PieceType, Piece } from './piece';
 import { BoardColor } from './board';
+import { SerDeClass } from '../utils/serde';
 
-export type ChessMove = {
+export type ChessMove = {skipWinnerComputation?: boolean} & ({
   type: 'move' | 'castle'
   piece: TPiece
   moveFrom: Cell
@@ -22,7 +23,7 @@ export type ChessMove = {
   moveFrom?: undefined
   moveTo?: undefined
   capturingPiece?: undefined
-}
+})
 
 export const chessMoveEqual = (moveA: ChessMove, moveB: ChessMove) => {
   return moveA.type === moveB.type &&
@@ -45,7 +46,9 @@ export const getMoveDescription = (move: ChessMove) => {
     const currentTurn = move.piece.color;
     return isCastle
       ? `${currentTurn} castles`
-      : `${currentTurn} moves ${move.piece.type} from ${Cell.toString(move.moveFrom)} to from ${Cell.toString(move.moveTo)}
+      : `${currentTurn} moves ${move.piece.type} from ${Cell.toString(move.moveFrom)} to ${Cell.toString(move.moveTo)}
             ${pieceToCapture ? ` capturing a ${Piece.toString(pieceToCapture)}` : ''}`;
   }
 }
+
+export const fromSerDeClass = (serDeChessMove: SerDeClass<ChessMove>) => serDeChessMove as ChessMove;

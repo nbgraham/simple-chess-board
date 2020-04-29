@@ -53,9 +53,12 @@ export const CellComponent = ({ rowIndex, columnIndex }: CellProps) => {
         [dispatchAction, thisCell, currentPiece]
     )
 
+    const isLastMovedPiece = useMemo(() => Cell.equals(board.lastMovedPiece?.cell, thisCell), [board, thisCell])
+    
+    const classNames = optionalClassNames([[isSelected, 'selected'], [isAvailableToMoveTo, 'available'], [isLastMovedPiece, 'lastMoved']])
     return (
         <div
-            className={`cell boardColor${cellBoardColor} ${isSelected ? 'selected' : ''} ${isAvailableToMoveTo ? 'available' : ''}`}
+            className={`cell boardColor${cellBoardColor} ${classNames}`}
             onClick={isPromotablePawn ? undefined : isAvailableToMoveTo ? moveToCell : toggleSelected}
             data-testid={Cell.toString(thisCell)}
         >
@@ -67,6 +70,9 @@ export const CellComponent = ({ rowIndex, columnIndex }: CellProps) => {
         </div>
     );
 }
+
+type OptionalClassName = [boolean | undefined, string]
+const optionalClassNames = (options: Array<OptionalClassName>) => options.filter(o => o[0]).map(o => o[1]).join(' ')
 
 type PromotablePawnOptionsProps = {
     color: BoardColor

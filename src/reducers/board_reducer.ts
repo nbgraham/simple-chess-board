@@ -13,6 +13,7 @@ export function boardReducer(previousBoard: Board, action: ChessMove) {
       const promotedPiece = Piece.create(action.promotedTo, action.piece.color);
       return previousBoard.toBuilder()
         .setPieceOnCell(action.location, promotedPiece)
+        .setAvailableMoves()
         .toBoard();
     case 'castle':
       const rook = previousBoard.getPiece(action.moveTo);
@@ -27,7 +28,8 @@ export function boardReducer(previousBoard: Board, action: ChessMove) {
         .setPieceOnCell(twoStepsToward, king)
         .setPieceOnCell(oneStepToward, rook)
         .switchTurns()
-        .checkAndSetWinner()
+        .checkAndSetWinner({skip: action.skipWinnerComputation})
+        .setAvailableMoves()
         .toBoard();
     case 'move':
     case 'capture':
@@ -40,7 +42,8 @@ export function boardReducer(previousBoard: Board, action: ChessMove) {
         .capturePiece(pieceToCapture)
         .setPieceOnCell(action.moveTo, pieceToMove)
         .switchTurns()
-        .checkAndSetWinner()
+        .checkAndSetWinner({skip: action.skipWinnerComputation})
+        .setAvailableMoves()
         .toBoard();
     default:
       console.error('Unknown action', JSON.stringify(action));
