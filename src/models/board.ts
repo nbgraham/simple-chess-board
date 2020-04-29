@@ -50,38 +50,6 @@ export class Board {
     return allPlacesThatHavePieces;
   }
 
-  colorWhoJustMovedIsInCheck() {
-    const colorWhoJustMoved = otherColor(this.currentTurn);
-    return this.isInCheck(colorWhoJustMoved);
-  }
-
-  isInCheck(color: BoardColor) {
-    const allOpposingMoves = this.getAllAvailableMovesForColor(otherColor(color));
-    return allOpposingMoves.some(isCaptureOfKingOfColor(color));
-  }
-
-  getColorThatIsInCheckMate(): BoardColor | undefined {
-    const colorToTest = this.currentTurn;
-    if (this.isInCheck(colorToTest)) {
-      const allMovesForColor = this.getAllAvailableMovesForColor(colorToTest);
-      const allMovesResultInCheck = allMovesForColor.every(potentialMove => {
-        const boardAfterPotentialMove = boardReducer(this, { ...potentialMove, skipWinnerComputation: true });
-        return boardAfterPotentialMove.isInCheck(colorToTest)
-      })
-      if (allMovesResultInCheck) {
-        return colorToTest;
-      }
-    }
-    return undefined;
-  }
-
-  private getAllAvailableMovesForColor(color: BoardColor) {
-    const piecesForColor = this.getAllPieceLocations(color);
-    const availableMovesService = new AvailableMovesService(this);
-    const allMovesForColor = flattenArray(piecesForColor.map(piece => availableMovesService.getAvailablePlacesToMoveFrom(piece.cell)));
-    return allMovesForColor;
-  }
-
   asShorthand() {
     return boardToShorthand(this.pieces);
   }
