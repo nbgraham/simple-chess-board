@@ -1,10 +1,11 @@
 import { Board } from './board';
 import { fastestWhiteInCheckMatePosition } from './arrangements';
+import { SerDeClass, boardDtoAsClass as boardAsClass } from '../utils/serde';
 
 test('no one is in check at start', () => {
     const boardAtStart = new Board();
-    expect(boardAtStart.isInCheck('black')).toBe(false);
-    expect(boardAtStart.isInCheck('white')).toBe(false);
+    expect(Board.isInCheck(boardAtStart, 'black')).toBe(false);
+    expect(Board.isInCheck(boardAtStart, 'white')).toBe(false);
 });
 
 const getFastestWhiteInCheckMate = () => new Board(
@@ -14,12 +15,12 @@ const getFastestWhiteInCheckMate = () => new Board(
 
 test('fastest checkmate', () => {
     const whiteInCheckMate = getFastestWhiteInCheckMate();
-    expect(whiteInCheckMate.getColorThatIsInCheckMate()).toBe('white');
+    expect(Board.getColorThatIsInCheckMate(whiteInCheckMate)).toBe('white');
 });
 
 test('resume: fastest checkmate', () => {
     const whiteInCheckMate = getFastestWhiteInCheckMate();
-    const serialized = JSON.stringify(whiteInCheckMate);
-    const resumed = Board.fromJSON(serialized);
-    expect(resumed.getColorThatIsInCheckMate()).toBe('white');
+    const serDeBoard: SerDeClass<Board> = JSON.parse(JSON.stringify(whiteInCheckMate));
+    const resumed = boardAsClass(serDeBoard);
+    expect(Board.getColorThatIsInCheckMate(resumed)).toBe('white');
 });

@@ -1,7 +1,7 @@
-import { BoardColor } from "./board";
+import { BoardColor } from "../utils/board_utils";
 
 export type PieceType = 'rook' | 'knight' | 'bishop' | 'queen' | 'king' | 'pawn';
-export type TPiece = {
+export type Piece = {
   type: PieceType
   color: BoardColor
   hasBeenMoved: boolean;
@@ -12,15 +12,15 @@ export const Piece = {
     type,
     color,
     hasBeenMoved: false
-  } as TPiece),
+  } as Piece),
 
-  equals: (pieceA?: TPiece | null, pieceB?: TPiece | null) =>
+  equals: (pieceA?: Piece | null, pieceB?: Piece | null) =>
     (!pieceA && !pieceB) ||
     (!!pieceA && !!pieceB && pieceA.type === pieceB.type && pieceA.color === pieceB.color),
 
-  toString: (piece?: TPiece | null) => piece ? `${piece.color} ${piece.type}` : '',
+  toString: (piece?: Piece | null) => piece ? `${piece.color} ${piece.type}` : '',
 
-  getRelativeValue: (piece: TPiece) => {
+  getRelativeValue: (piece: Piece) => {
     switch (piece.type) {
       case 'pawn':
         return 1;

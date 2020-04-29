@@ -1,70 +1,47 @@
-import { Board } from '../models/board';
-import { Piece } from '../models/piece';
+import produce from "immer";
+import { Board, BoardDtoMutations } from '../models/board';
 import { Cell, Vector } from '../models/cell';
-import { ChessMove, chessMoveEqual } from '../models/chess_move';
+import { ChessMove } from '../models/chess_move';
+import { Piece } from '../models/piece';
 import { assert, checkForErrorType, IllegalMoveError } from '../utils/assert';
-import { AvailableMovesService } from '../services/available_moves';
 
-export function boardReducer(previousBoard: Board, action: ChessMove) {
-  checkForErrorType(IllegalMoveError.fromAssertionError, () => assertMoveIsAvailable(previousBoard, action))
-
+export const boardReducer = produce((draftBoard: Board, action: ChessMove) => {
   switch (action.type) {
     case 'promote_pawn':
       const promotedPiece = Piece.create(action.promotedTo, action.piece.color);
-      return previousBoard.toBuilder()
-        .setPieceOnCell(action.location, promotedPiece)
-        .setAvailableMoves()
-        .toBoard();
+      BoardDtoMutations.setPieceOnCell(draftBoard, action.location, promotedPiece)
+      break;
     case 'castle':
-      const rook = previousBoard.getPiece(action.moveTo);
-      const king = previousBoard.getPiece(action.moveFrom);
+      const rook = Board.getPiece(draftBoard, action.moveTo);
+      const king = Board.getPiece(draftBoard, action.moveFrom);
 
       const [kingLocation, rookLocation] = action.piece.type === 'king' ? [action.moveFrom, action.moveTo] : [action.moveTo, action.moveFrom]
 
       const { oneStepToward, twoStepsToward } = cellsOneAndTwoMovesFromAtoB(kingLocation, rookLocation)
-      return previousBoard.toBuilder()
-        .setPieceOnCell(kingLocation, undefined)
-        .setPieceOnCell(rookLocation, undefined)
-        .setPieceOnCell(twoStepsToward, king)
-        .setPieceOnCell(oneStepToward, rook)
-        .switchTurns()
-        .checkAndSetWinner({skip: action.skipWinnerComputation})
-        .setAvailableMoves()
-        .toBoard();
+
+      BoardDtoMutations.setPieceOnCell(draftBoard, kingLocation, null)
+      BoardDtoMutations.setPieceOnCell(draftBoard, rookLocation, null)
+      BoardDtoMutations.setPieceOnCell(draftBoard, twoStepsToward, king)
+      BoardDtoMutations.setPieceOnCell(draftBoard, oneStepToward, rook)
+      BoardDtoMutations.switchTurns(draftBoard)
+      break;
     case 'move':
     case 'capture':
-      const pieceToMove = previousBoard.getPiece(action.moveFrom);
-      const pieceToCapture = action.type === 'capture' ? previousBoard.getPiece(action.moveTo) : undefined;
-      const pieceToLeaveBehind = undefined;
+      const pieceToMove = Board.getPiece(draftBoard, action.moveFrom);
+      const pieceToCapture = action.type === 'capture' ? Board.getPiece(draftBoard, action.moveTo) : undefined;
+      const pieceToLeaveBehind = null;
 
-      return previousBoard.toBuilder()
-        .setPieceOnCell(action.moveFrom, pieceToLeaveBehind)
-        .capturePiece(pieceToCapture)
-        .setPieceOnCell(action.moveTo, pieceToMove)
-        .switchTurns()
-        .checkAndSetWinner({skip: action.skipWinnerComputation})
-        .setAvailableMoves()
-        .toBoard();
+      BoardDtoMutations.setPieceOnCell(draftBoard, action.moveFrom, pieceToLeaveBehind)
+      BoardDtoMutations.capturePiece(draftBoard, pieceToCapture)
+      BoardDtoMutations.setPieceOnCell(draftBoard, action.moveTo, pieceToMove)
+      BoardDtoMutations.switchTurns(draftBoard)
+      break;
     default:
       console.error('Unknown action', JSON.stringify(action));
-      return previousBoard;
   }
-}
+})
 
-function assertMoveIsAvailable(previousBoard: Board, action: ChessMove) {
-  if (action.type === 'promote_pawn') {
-    assert(action.location.rowIndex === 0 || action.location.rowIndex === 7, 'Can only promote when at the end of the board', action);
-    const pieceActuallyAtBoardLocation = previousBoard.getPiece(action.location)
-    assert(Piece.equals(action.piece, pieceActuallyAtBoardLocation), `Piece must match piece on board: ${Piece.toString(pieceActuallyAtBoardLocation)}`, action)
-    assert(action.piece.type === 'pawn', 'Can only promote pawns', action);
-  } else {
-    const availableMovesService = new AvailableMovesService(previousBoard);
-    const availableMoves = availableMovesService.getAvailablePlacesToMoveFrom(action.moveFrom);
-    assert(availableMoves.some(move => chessMoveEqual(move, action)), 'Action must be available', action)
-  }
-}
-
-const cellsOneAndTwoMovesFromAtoB = (cellA: Cell, cellB: Cell) => {
+export const cellsOneAndTwoMovesFromAtoB = (cellA: Cell, cellB: Cell) => {
   const vectorFromAtoB = Cell.difference(cellB, cellA);
   const normalizedVectorFromAtoB = Vector.normalize(vectorFromAtoB);
   checkForErrorType(IllegalMoveError.fromAssertionError, () =>

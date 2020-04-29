@@ -71,6 +71,9 @@ export const makeRewindableReducer = <S, A>(reducer: (state: S, action: A) => S,
             return initialRewindableState;
         } else {
             const nextState = reducer(state.currentState, action);
+            if (nextState === state.currentState) {
+                return state
+            }
             return {
                 pastActions: [...state.pastActions, action],
                 pastStates: [...state.pastStates, state.currentState],

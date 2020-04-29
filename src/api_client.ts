@@ -1,8 +1,8 @@
 import io from 'socket.io-client';
-import { Board } from './models/board';
 import { ChessMove } from './models/chess_move';
 import { RewindableReducerState, SerDeRewindableReducerState } from './utils/rewindable_reducer';
-import { SerDeClass, boardAsClass } from './utils/serde';
+import { SerDeClass, boardDtoAsClass, chessMoveAsClass, gameStateDtoAsClass } from './utils/serde';
+import { GameStateDto } from './models/game_state_dto';
 
 const API_URL = 'http://192.168.1.191:8000';
 
@@ -34,12 +34,16 @@ class ApiClient {
         })
     }
 
-    subcribeToBoard(cb: (s: SerDeRewindableReducerState<Board, ChessMove>) => void) {
-        const listener = (boardHistory: RewindableReducerState<SerDeClass<Board>, ChessMove>) => {
+    subcribeToBoard(cb: (s: SerDeRewindableReducerState<GameStateDto, ChessMove>) => void) {
+        const listener = (boardHistory: RewindableReducerState<SerDeClass<GameStateDto>, ChessMove>) => {
             console.debug('Got new board from server', boardHistory)
             const value = {
                 ...boardHistory,
-                currentState: boardAsClass(boardHistory.currentState)
+                currentState: gameStateDtoAsClass(boardHistory.currentState),
+                pastStates: boardHistory.pastStates.map(boardDtoAsClass),
+                futureStates: boardHistory.futureStates.map(boardDtoAsClass),
+                pastActions: boardHistory.pastActions.map(chessMoveAsClass),
+                futureActions: boardHistory.futureActions.map(chessMoveAsClass)
             }
             cb(value)
         }

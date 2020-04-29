@@ -1,8 +1,11 @@
+import produce from "immer";
 import { distinctFilter, flattenArray } from '../utils/array_utils';
-import { Board, PieceAtCell } from '../models/board';
 import { Cell, Vector } from '../models/cell';
-import { TPiece, Piece } from '../models/piece';
-import { ChessMove, chessMoveEqual } from '../models/chess_move';
+import { Piece } from '../models/piece';
+import { ChessMove } from '../models/chess_move';
+import { PieceAtCell, BoardUtils, BoardColor } from '../utils/board_utils';
+import { cellsOneAndTwoMovesFromAtoB, boardReducer } from '../reducers/board_reducer';
+import { BoardDtoMutations, Board } from "../models/board";
 
 const PERPENDICULAR_VECTORS = [[0, 1], [0, -1], [1, 0], [-1, 0]] as Vector[];
 const DIAGONAL_VECTORS = [[1, 1], [1, -1], [-1, 1], [-1, -1]] as Vector[];
@@ -20,10 +23,53 @@ const DefaultGetAvailableMovesFromVectorSetOptions: GetAvailableMovesFromVectorS
   canOnlyMoveIfCapturing: false
 }
 
+type AvailableMoveOptions = {
+  allowMovesThatPutYouInCheck?: boolean
+  onlyCaptureMoves?: boolean
+}
+export const defaultAvailableMoveOptions: AvailableMoveOptions = {
+  allowMovesThatPutYouInCheck: false,
+  onlyCaptureMoves: false
+}
+
 export class AvailableMovesService {
-  board: Board;
-  constructor(board: Board) {
-    this.board = board;
+  constructor(
+    readonly board: Board,
+    readonly forColor: BoardColor,
+    readonly options = defaultAvailableMoveOptions) {
+  }
+
+  static isInCheck(board: Board, color: BoardColor) {
+    const allOpposingMoves = AvailableMovesService.getAllAvailableMovesForColor(board, BoardUtils.otherColor(color), { allowMovesThatPutYouInCheck: true, onlyCaptureMoves: true });
+    return allOpposingMoves.some(ChessMove.isCaptureOfKingOfColor(color));
+  }
+
+  private static getAllAvailableMovesForColor(board: Board, color: BoardColor, options = defaultAvailableMoveOptions) {
+    const availableMovesService = new AvailableMovesService(board, color, options);
+    const allMovesForColor = availableMovesService.getAllAvailableMovesFlat();
+    return allMovesForColor;
+  }
+
+  static colorWhoJustMovedIsInCheck(board: Board) {
+    const colorWhoJustMoved = BoardUtils.otherColor(board.currentTurn);
+    return AvailableMovesService.isInCheck(board, colorWhoJustMoved);
+  }
+
+
+  static getColorThatIsInCheckMate(board: Board): BoardColor | undefined {
+    const colorToTest = board.currentTurn;
+    return AvailableMovesService.isInCheckMate(board, colorToTest);
+  }
+
+  private static isInCheckMate(board: Board, colorToTest: BoardColor): BoardColor | undefined {
+    const currentTurnPlayerIsInCheck = AvailableMovesService.isInCheck(board, colorToTest);
+    if (currentTurnPlayerIsInCheck) {
+      const allLegalMovesForColor = AvailableMovesService.getAllAvailableMovesForColor(board, colorToTest, { allowMovesThatPutYouInCheck: false, onlyCaptureMoves: false });
+      if (allLegalMovesForColor.length === 0) {
+        return colorToTest;
+      }
+    }
+    return undefined;
   }
 
   getAllAvailableMoves(): (ChessMove[])[][] {
@@ -32,38 +78,57 @@ export class AvailableMovesService {
     )
   }
 
-  getAvailablePlacesToMoveFrom(selectedCell: Cell): ChessMove[] {
-    return this._getAvailablePlacesToMoveFrom(selectedCell)
-      .filter(distinctFilter(chessMoveEqual));
+  getAllAvailableMovesFlat(): ChessMove[] {
+    return flattenArray(flattenArray(this.getAllAvailableMoves()))
   }
 
-  private _getAvailablePlacesToMoveFrom(selectedCell: Cell): ChessMove[] {
-    const selectedPiece = this.board.getPiece(selectedCell);
-    if (selectedPiece) {
-      const pieceAtCell = { piece: selectedPiece, cell: selectedCell };
-      switch (selectedPiece.type) {
-        case 'pawn':
-          return this.getAvailableMovesForPawn(pieceAtCell);
-        case 'rook':
-          return this.getAvailableMovesForRook(pieceAtCell);
-        case 'bishop':
-          return this.getAvailableMovesForBishop(pieceAtCell);
-        case 'knight':
-          return this.getAvailableMovesForKnight(pieceAtCell);
-        case 'queen':
-          return this.getAvailableMovesForQueen(pieceAtCell);
-        case 'king':
-          return this.getAvailableMovesForKing(pieceAtCell);
-        default:
-          return [];
-      }
-    } else {
-      return [];
+  getAvailablePlacesToMoveFrom(selectedCell: Cell): ChessMove[] {
+    const selectedPiece = Board.getPiece(this.board, selectedCell);
+    if (!selectedPiece || selectedPiece.color !== this.forColor) {
+      return []
+    }
+
+    const pieceAtCell = { piece: selectedPiece, cell: selectedCell };
+    return this.getAvailableMovesForPiece(pieceAtCell)
+      .filter(distinctFilter(ChessMove.equals))
+      .filter(move => this.moveIsValid(move))
+  }
+
+  private moveIsValid(move: ChessMove) {
+    if (this.options.allowMovesThatPutYouInCheck) {
+      return true;
+    }
+
+    try {
+      const boardAfterMove = boardReducer(this.board, move);
+      return !AvailableMovesService.isInCheck(boardAfterMove, move.piece.color)
+    } catch (error) {
+      console.log(error)
+      return true
+    }
+  }
+
+  private getAvailableMovesForPiece(pieceAtCell: PieceAtCell): ChessMove[] {
+    switch (pieceAtCell.piece.type) {
+      case 'pawn':
+        return this.getAvailableMovesForPawn(pieceAtCell);
+      case 'rook':
+        return this.getAvailableMovesForRook(pieceAtCell);
+      case 'bishop':
+        return this.getAvailableMovesForBishop(pieceAtCell);
+      case 'knight':
+        return this.getAvailableMovesForKnight(pieceAtCell);
+      case 'queen':
+        return this.getAvailableMovesForQueen(pieceAtCell);
+      case 'king':
+        return this.getAvailableMovesForKing(pieceAtCell);
+      default:
+        return [];
     }
   }
 
   private getAvailableMovesForPawn(selectedPieceAtCell: PieceAtCell): ChessMove[] {
-    const potentialMoveVectorSet = this.getPotentialMoveVectorSetForPawn(selectedPieceAtCell);
+    const potentialMoveVectorSet = this.options.onlyCaptureMoves ? [] : this.getPotentialMoveVectorSetForPawn(selectedPieceAtCell);
     const potentialCaptureVectorSet = this.getPotentialCaptureVectorsForPawn(selectedPieceAtCell);
     return [
       ...this.getAvailableMovesFromVectorSet(
@@ -87,7 +152,7 @@ export class AvailableMovesService {
   }
 
   private getAvailableMovesForRook(selectedPieceAtCell: PieceAtCell): ChessMove[] {
-    const castleMoves = this.getAvailableCastleMoves(selectedPieceAtCell, 'rook');
+    const castleMoves = this.options.onlyCaptureMoves ? [] : this.getAvailableCastleMoves(selectedPieceAtCell, 'rook');
     return [
       ...castleMoves,
       ...this.getAvailableMovesAlongVectors(selectedPieceAtCell, PERPENDICULAR_VECTORS)
@@ -107,7 +172,7 @@ export class AvailableMovesService {
   }
 
   private getAvailableMovesForKing(selectedPieceAtCell: PieceAtCell): ChessMove[] {
-    const castleMoves = this.getAvailableCastleMoves(selectedPieceAtCell, 'king');
+    const castleMoves = this.options.onlyCaptureMoves ? [] : this.getAvailableCastleMoves(selectedPieceAtCell, 'king');
     return [
       ...castleMoves,
       ...this.getAvailableMovesFromVectorSet(selectedPieceAtCell, [...PERPENDICULAR_VECTORS, ...DIAGONAL_VECTORS])
@@ -128,8 +193,8 @@ export class AvailableMovesService {
     return castleMoves;
   }
 
-  private findPieces(piece: TPiece) {
-    return this.board.getAllPieceLocations()
+  private findPieces(piece: Piece) {
+    return Board.getAllPieceLocations(this.board)
       .filter(pieceAtCell => Piece.equals(piece, pieceAtCell.piece));
   }
 
@@ -137,17 +202,40 @@ export class AvailableMovesService {
     const king = pieces.find(p => p?.piece.type === 'king');
     const rook = pieces.find(p => p?.piece.type === 'rook');
 
-    const neitherMoved = !!king && !!rook
-      && !rook.piece.hasBeenMoved && !king.piece.hasBeenMoved
-    const noPiecesBetween = !!king && !!rook
-      && this.noPiecesBetweenExclusive(rook.cell, king.cell);
+    if (!!king && !!rook) {
+      const neitherMoved = () => !rook.piece.hasBeenMoved && !king.piece.hasBeenMoved
+      const noPiecesBetween = () => this.noPiecesBetweenExclusive(rook.cell, king.cell);
+      const kingIsNotInCheck = () => !AvailableMovesService.isInCheck(this.board, king.piece.color)
+      const kingDoesNotMoveCellsThatAreUnderAttack = () => {
+        const cellsTheKingWouldMoveThrough = cellsOneAndTwoMovesFromAtoB(king.cell, rook.cell)
+        return !this.movingKingToCellWouldPlaceHimUnderAttack(king, cellsTheKingWouldMoveThrough.oneStepToward) &&
+          !this.movingKingToCellWouldPlaceHimUnderAttack(king, cellsTheKingWouldMoveThrough.twoStepsToward)
+      }
 
-    return neitherMoved && noPiecesBetween;
+      return neitherMoved() && noPiecesBetween() && kingIsNotInCheck() && kingDoesNotMoveCellsThatAreUnderAttack();
+    } else {
+      return false;
+    }
+  }
+
+  private movingKingToCellWouldPlaceHimUnderAttack(king: PieceAtCell, cell: Cell) {
+    const boardWithKingMoved = produce(this.board, draftNextBoard => {
+      BoardDtoMutations.setPieceOnCell(draftNextBoard, king.cell, undefined)
+      BoardDtoMutations.setPieceOnCell(draftNextBoard, cell, king.piece)
+      BoardDtoMutations.switchTurns(draftNextBoard)
+    })
+    const opposingColor = BoardUtils.otherColor(king.piece.color);
+    const availableCaptureService = new AvailableMovesService(boardWithKingMoved, opposingColor, { allowMovesThatPutYouInCheck: true, onlyCaptureMoves: true })
+    const opposingPieces = Board.getAllPieceLocations(boardWithKingMoved, opposingColor);
+    const opposingMoves = flattenArray(opposingPieces.map(opposingPiece =>
+      availableCaptureService.getAvailableMovesForPiece(opposingPiece)
+    ))
+    return opposingMoves.some(ChessMove.isCaptureOfKingOfColor(king.piece.color))
   }
 
   private noPiecesBetweenExclusive(cellA: Cell, cellB: Cell) {
     const cellsAlongMoveBetween = this.getCellsAlongMove(cellA, cellB)
-    return !!cellsAlongMoveBetween && cellsAlongMoveBetween.every(cell => !this.board.getPiece(cell));
+    return !!cellsAlongMoveBetween && cellsAlongMoveBetween.every(cell => !Board.getPiece(this.board, cell));
   }
 
   /**
@@ -164,7 +252,7 @@ export class AvailableMovesService {
     if (Vector.isDiagonal(normalizedVectorFromAtoB) || Vector.isPerpendicular(normalizedVectorFromAtoB)) {
       let currentCellAlongVector = Cell.addVector(cellA, normalizedVectorFromAtoB);
       while (!Cell.equals(cellB, currentCellAlongVector)) {
-        if (!Board.isCellOnBoard(currentCellAlongVector)) {
+        if (!BoardUtils.isCellOnBoard(currentCellAlongVector)) {
           throw new Error(`Cell between two ${cellA} and ${cellB} was not on board`);
         }
         result.push(currentCellAlongVector);
@@ -189,10 +277,10 @@ export class AvailableMovesService {
     let currentCell = selectedPieceAtCell.cell;
     while (true) {
       currentCell = Cell.addVector(currentCell, vector);
-      if (!Board.isCellOnBoard(currentCell)) {
+      if (!BoardUtils.isCellOnBoard(currentCell)) {
         break;
       }
-      const pieceAtCurrentCell = this.board.getPiece(currentCell);
+      const pieceAtCurrentCell = Board.getPiece(this.board, currentCell);
       if (pieceAtCurrentCell) {
         if (pieceAtCurrentCell.color !== selectedPieceAtCell.piece?.color) {
           result.push({
@@ -205,12 +293,14 @@ export class AvailableMovesService {
         }
         break;
       }
-      result.push({
-        type: 'move',
-        piece: selectedPieceAtCell.piece,
-        moveFrom: selectedPieceAtCell.cell,
-        moveTo: currentCell,
-      });
+      if (!this.options.onlyCaptureMoves) {
+        result.push({
+          type: 'move',
+          piece: selectedPieceAtCell.piece,
+          moveFrom: selectedPieceAtCell.cell,
+          moveTo: currentCell,
+        });
+      }
     }
 
     return result;
@@ -221,8 +311,8 @@ export class AvailableMovesService {
 
     for (const vector of vectorSet) {
       const currentCell = Cell.addVector(selectedPieceAtCell.cell, vector);
-      if (Board.isCellOnBoard(currentCell)) {
-        const pieceAtCurrentCell = this.board.getPiece(currentCell);
+      if (BoardUtils.isCellOnBoard(currentCell)) {
+        const pieceAtCurrentCell = Board.getPiece(this.board, currentCell);
         if (pieceAtCurrentCell) {
           if (options.canCapture && pieceAtCurrentCell.color !== selectedPieceAtCell.piece.color) {
             result.push({
@@ -233,7 +323,7 @@ export class AvailableMovesService {
               capturingPiece: pieceAtCurrentCell
             });
           }
-        } else if (!options.canOnlyMoveIfCapturing) {
+        } else if (!options.canOnlyMoveIfCapturing && !this.options.onlyCaptureMoves) {
           result.push({
             type: 'move',
             piece: selectedPieceAtCell.piece,

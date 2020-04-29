@@ -1,3 +1,7 @@
+export const last = <T>(array: Array<T>) => array.length > 0 ? array[array.length - 1] : undefined
+
+export const noItemIn = <T>(array: Array<T>, isAnItemThatDoesX: (item: T) => boolean) => 
+    array.every(item => !isAnItemThatDoesX(item))
 
 export const distinctFilter = <T>(comparator: (a: T, b: T) => boolean = defaultComparator) =>
     (currentItem: T, index: number, list: T[]) =>

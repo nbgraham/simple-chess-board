@@ -1,1 +1,0 @@
-export const LETTERS_FOR_COLUMNS = 'abcdefgh';

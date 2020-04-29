@@ -1,5 +1,5 @@
-import { TPiece, PieceType } from './piece';
-import { BoardColor, BoardPieces } from './board';
+import { Piece, PieceType } from './piece';
+import { BoardColor, BoardPieces } from '../utils/board_utils';
 
 type ColorShorthand = '⚪' | '⚫';
 type PieceTypeShorthand = '🏰' | '🐴' | '⛪' | '👸' | '🤴' | '♟';
@@ -7,7 +7,7 @@ type RealPieceShorthand = '⚪🏰' | '⚫🏰' | '⚪🐴' | '⚫🐴' | '⚪�
 type EmptyCellShorthand = '🕳 🕳';
 export type PieceShorthand = EmptyCellShorthand | RealPieceShorthand;
 
-export const toPiece = (pieceShorthand: RealPieceShorthand): Omit<TPiece, 'hasBeenMoved'> => {
+export const toPiece = (pieceShorthand: RealPieceShorthand): Omit<Piece, 'hasBeenMoved'> => {
     const [colorEmoji, typeEmoji] = pieceShorthand as unknown as [ColorShorthand, PieceTypeShorthand];
     return { color: toPieceColor(colorEmoji), type: toPieceType(typeEmoji) };
 }
@@ -39,8 +39,8 @@ const toPieceType = (pieceTypeEmoji: PieceTypeShorthand): PieceType => {
 export const boardToShorthand = (boardPieces: BoardPieces): string => 
     `[\n${boardPieces.map(row => `\t[${row.map(toShorthandFunction).join(', ')}]`).join(',\n')}\n]`
 
-const toShorthandFunction = (piece?: TPiece | null) => piece ? `${piece.hasBeenMoved ? 'm' : 'u'}('${toShorthand(piece)}')` : "e('🕳 🕳')"
-export const toShorthand = (piece: TPiece) => `${toShorthandColor(piece.color)}${toShorthandType(piece.type)}` as PieceShorthand
+const toShorthandFunction = (piece?: Piece | null) => piece ? `${piece.hasBeenMoved ? 'm' : 'u'}('${toShorthand(piece)}')` : "e('🕳 🕳')"
+export const toShorthand = (piece: Piece) => `${toShorthandColor(piece.color)}${toShorthandType(piece.type)}` as PieceShorthand
 
 const toShorthandColor = (color: BoardColor): ColorShorthand => {
     switch(color) {
@@ -68,8 +68,8 @@ const toShorthandType = (type: PieceType): PieceTypeShorthand => {
     }
 }
 
-export const e = (_: EmptyCellShorthand) => undefined;
-export const u = (pieceShorthand: RealPieceShorthand): TPiece =>
+export const e = (_: EmptyCellShorthand) => null;
+export const u = (pieceShorthand: RealPieceShorthand): Piece =>
     ({ ...toPiece(pieceShorthand), hasBeenMoved: false })
-export const m = (pieceShorthand: RealPieceShorthand): TPiece =>
+export const m = (pieceShorthand: RealPieceShorthand): Piece =>
     ({ ...toPiece(pieceShorthand), hasBeenMoved: true })

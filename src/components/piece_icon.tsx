@@ -1,9 +1,9 @@
 import React from 'react';
-import { TPiece, PieceType, Piece } from '../models/piece';
-import { BoardColor } from '../models/board';
+import { Piece, PieceType } from '../models/piece';
+import { BoardColor } from '../utils/board_utils';
 
 type PieceIconProps = {
-    piece: TPiece;
+    piece: Piece;
     style?: React.CSSProperties;
     onClick?: () => void;
 }
@@ -19,7 +19,7 @@ export const PieceIcon = (props: PieceIconProps) => {
 }
 
 
-const getPieceImgUrl = (piece: TPiece) => {
+const getPieceImgUrl = (piece: Piece) => {
     return getPieceImgUrlFromAssets(getPieceKey(piece.type), piece.color);
 }
 

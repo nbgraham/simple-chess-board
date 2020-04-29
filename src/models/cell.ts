@@ -1,4 +1,4 @@
-import { getLabelForColumn, getLabelForRow } from "./board";
+import { BoardUtils } from "../utils/board_utils";
 
 export type Vector = [number, number];
 const ROW = 0;
@@ -16,7 +16,7 @@ export const Cell = {
   },
 
   toString: (cell: Cell) => {
-    return `${getLabelForColumn(cell.columnIndex)}${getLabelForRow(cell.rowIndex)}`
+    return `${BoardUtils.getLabelForColumn(cell.columnIndex)}${BoardUtils.getLabelForRow(cell.rowIndex)}`
   },
 
   addVector: (cell: Cell, vector: Vector): Cell => {

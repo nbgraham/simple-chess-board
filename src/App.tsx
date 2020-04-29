@@ -1,6 +1,6 @@
 import React from 'react';
 import './App.css';
-import { BoardComponent } from './components/board';
+import { SmartBoard } from './components/board';
 import { BoardContextProvider } from './context';
 import { ScorePanel } from './components/score_panel';
 import { API_CLIENT } from './api_client';
@@ -51,7 +51,7 @@ class App extends React.Component<{}, AppState> {
             <ScorePanel />
           </div>
           <div style={{ flex: 6 }}>
-            <BoardComponent numColumns={8} numRows={8} />
+            <SmartBoard />
           </div>
         </div>
       </BoardContextProvider>

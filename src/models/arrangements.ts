@@ -1,5 +1,5 @@
-import { BoardPieces } from './board';
 import { u, e, m } from './piece_shorthand'
+import { BoardPieces } from '../utils/board_utils';
 
 export const startingPosition: BoardPieces = [
     [u('⚫🏰'), u('⚫🐴'), u('⚫⛪'), u('⚫👸'), u('⚫🤴'), u('⚫⛪'), u('⚫🐴'), u('⚫🏰')],

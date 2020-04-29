@@ -1,51 +1,71 @@
-import { Board, BoardPieces } from '../models/board';
 import { ChessMove } from '../models/chess_move';
-import { RewindableReducerState, SerDeRewindableReducerState, makeInitialState, UNDO, RESET, REDO } from '../utils/rewindable_reducer';
+import { RewindableReducerState, SerDeRewindableReducerState, UNDO, RESET, REDO } from '../utils/rewindable_reducer';
 import { makeRewindableReducer } from '../utils/rewindable_reducer';
-import { boardReducer } from '../reducers/board_reducer';
+import { makeStartingRewindableState, gameStateReducer } from '../reducers/game_state_reducer';
+import { GameStateDto } from '../models/game_state_dto';
 
-const startingPieces: BoardPieces = [[{ "color": "black", "type": "rook", "hasBeenMoved": false }, { "color": "black", "type": "knight", "hasBeenMoved": false }, { "color": "black", "type": "bishop", "hasBeenMoved": false }, { "color": "black", "type": "queen", "hasBeenMoved": false }, { "color": "black", "type": "king", "hasBeenMoved": false }, { "color": "black", "type": "bishop", "hasBeenMoved": false }, { "color": "black", "type": "knight", "hasBeenMoved": false }, { "color": "black", "type": "rook", "hasBeenMoved": false }], [{ "color": "black", "type": "pawn", "hasBeenMoved": false }, { "color": "black", "type": "pawn", "hasBeenMoved": false }, { "color": "black", "type": "pawn", "hasBeenMoved": false }, { "color": "black", "type": "pawn", "hasBeenMoved": false }, { "color": "black", "type": "pawn", "hasBeenMoved": false }, { "color": "black", "type": "pawn", "hasBeenMoved": false }, { "color": "black", "type": "pawn", "hasBeenMoved": false }, { "color": "black", "type": "pawn", "hasBeenMoved": false }], [null, null, null, null, null, null, null, null], [null, null, null, null, null, null, null, null], [null, null, null, null, null, null, null, null], [null, null, null, null, null, null, null, null], [{ "color": "white", "type": "pawn", "hasBeenMoved": false }, { "color": "white", "type": "pawn", "hasBeenMoved": false }, { "color": "white", "type": "pawn", "hasBeenMoved": false }, { "color": "white", "type": "pawn", "hasBeenMoved": false }, { "color": "white", "type": "pawn", "hasBeenMoved": false }, { "color": "white", "type": "pawn", "hasBeenMoved": false }, { "color": "white", "type": "pawn", "hasBeenMoved": false }, { "color": "white", "type": "pawn", "hasBeenMoved": false }], [{ "color": "white", "type": "rook", "hasBeenMoved": false }, { "color": "white", "type": "knight", "hasBeenMoved": false }, { "color": "white", "type": "bishop", "hasBeenMoved": false }, { "color": "white", "type": "queen", "hasBeenMoved": false }, { "color": "white", "type": "king", "hasBeenMoved": false }, { "color": "white", "type": "bishop", "hasBeenMoved": false }, { "color": "white", "type": "knight", "hasBeenMoved": false }, { "color": "white", "type": "rook", "hasBeenMoved": false }]];
-const startingBoard = new Board(startingPieces).toBuilder().setAvailableMoves().toBuilder()
-const initialRewindableBoardState = makeInitialState<Board, ChessMove>(startingBoard);
-const rewindableReducer = makeRewindableReducer(boardReducer, initialRewindableBoardState)
+const initialRewindableBoardState = makeStartingRewindableState();
+const rewindableReducer = makeRewindableReducer(gameStateReducer, initialRewindableBoardState)
 
+type BoardListener = (s: SerDeRewindableReducerState<GameStateDto, ChessMove>) => void;
+type BoardListenersReducerAction = {
+    type: 'add',
+    listener: BoardListener
+} | {
+    type: 'remove'
+    listener: BoardListener
+}
 class MockApiClient {
-    boardState: RewindableReducerState<Board, ChessMove> = initialRewindableBoardState
-    boardListeners: Array<(s: SerDeRewindableReducerState<Board, ChessMove>) => void> = []
+    gameState: RewindableReducerState<GameStateDto, ChessMove> = initialRewindableBoardState
+    boardListeners: Array<BoardListener> = []
 
     constructor() {
     }
 
-    private emitBoardUpdate() {
-        this.boardListeners.forEach(listener => listener(this.boardState))
+    static boardListenerReducer(prevListeners: Array<BoardListener>, action: BoardListenersReducerAction) {
+        if (action.type === 'add') {
+            return [...prevListeners, action.listener]
+        } else if (action.type === 'remove') {
+            return prevListeners.filter(l => l !== action.listener)
+        } else {
+            return prevListeners
+        }
     }
 
-    subcribeToBoard(cb: (s: SerDeRewindableReducerState<Board, ChessMove>) => void) {
-        this.boardListeners.push(cb)
+    private dispatch(action: BoardListenersReducerAction) {
+        this.boardListeners = MockApiClient.boardListenerReducer(this.boardListeners, action)
+    }
+
+    private emitBoardUpdate() {
+        this.boardListeners.forEach(listener => listener(this.gameState))
+    }
+
+    subcribeToBoard(listener: BoardListener) {
+        this.dispatch({ type: 'add', listener })
         this.emitBoardUpdate()
         return {
-            unsubscribe: () => { this.boardListeners = this.boardListeners.filter(c => c !== cb) }
+            unsubscribe: () => { this.dispatch({ type: 'remove', listener }) }
         }
     }
 
     sendMove(move: ChessMove) {
-        this.boardState = rewindableReducer(this.boardState, move)
+        this.gameState = rewindableReducer(this.gameState, move)
         this.emitBoardUpdate()
     }
 
     undoMove() {
-        this.boardState = rewindableReducer(this.boardState, UNDO.action)
+        this.gameState = rewindableReducer(this.gameState, UNDO.action)
         this.emitBoardUpdate()
     }
 
     redoMove() {
-        this.boardState = rewindableReducer(this.boardState, REDO.action)
-        this.emitBoardUpdate()    
+        this.gameState = rewindableReducer(this.gameState, REDO.action)
+        this.emitBoardUpdate()
     }
 
     resetBoard() {
-        this.boardState = rewindableReducer(this.boardState, RESET.action)
-        this.emitBoardUpdate()    
+        this.gameState = rewindableReducer(this.gameState, RESET.action)
+        this.emitBoardUpdate()
     }
 }
 

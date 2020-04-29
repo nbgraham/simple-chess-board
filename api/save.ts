@@ -1,13 +1,13 @@
-import fs from 'fs';
-import { Board, BoardPieces } from "../src/models/board";
 import { ChessMove } from "../src/models/chess_move";
-import { RewindableReducerState, SerDeRewindableReducerState, makeInitialState } from '../src/utils/rewindable_reducer';
-import { boardAsClass, chessMoveAsClass } from '../src/utils/serde';
+import { RewindableReducerState, SerDeRewindableReducerState } from '../src/utils/rewindable_reducer';
+import { chessMoveAsClass, gameStateDtoAsClass } from '../src/utils/serde';
+import { writeToFile, readFile } from "./files";
+import { makeStartingRewindableState } from "../src/reducers/game_state_reducer";
+import { GameStateDto } from "../src/models/game_state_dto";
 
 const BOARD_STATE_FILE = 'boardState.temp.json';
-const ENCODING = 'utf8';
 
-export const getInitialState = (resume: boolean): Promise<RewindableReducerState<Board, ChessMove>> => {
+export const getInitialState = (resume: boolean): Promise<RewindableReducerState<GameStateDto, ChessMove>> => {
     if (resume) {
         return retrieveBoardState()
             .then(board => {
@@ -23,50 +23,29 @@ export const getInitialState = (resume: boolean): Promise<RewindableReducerState
     }
 }
 
-const startingPieces: BoardPieces = [[{ "color": "black", "type": "rook", "hasBeenMoved": false }, { "color": "black", "type": "knight", "hasBeenMoved": false }, { "color": "black", "type": "bishop", "hasBeenMoved": false }, { "color": "black", "type": "queen", "hasBeenMoved": false }, { "color": "black", "type": "king", "hasBeenMoved": false }, { "color": "black", "type": "bishop", "hasBeenMoved": false }, { "color": "black", "type": "knight", "hasBeenMoved": false }, { "color": "black", "type": "rook", "hasBeenMoved": false }], [{ "color": "black", "type": "pawn", "hasBeenMoved": false }, { "color": "black", "type": "pawn", "hasBeenMoved": false }, { "color": "black", "type": "pawn", "hasBeenMoved": false }, { "color": "black", "type": "pawn", "hasBeenMoved": false }, { "color": "black", "type": "pawn", "hasBeenMoved": false }, { "color": "black", "type": "pawn", "hasBeenMoved": false }, { "color": "black", "type": "pawn", "hasBeenMoved": false }, { "color": "black", "type": "pawn", "hasBeenMoved": false }], [null, null, null, null, null, null, null, null], [null, null, null, null, null, null, null, null], [null, null, null, null, null, null, null, null], [null, null, null, null, null, null, null, null], [{ "color": "white", "type": "pawn", "hasBeenMoved": false }, { "color": "white", "type": "pawn", "hasBeenMoved": false }, { "color": "white", "type": "pawn", "hasBeenMoved": false }, { "color": "white", "type": "pawn", "hasBeenMoved": false }, { "color": "white", "type": "pawn", "hasBeenMoved": false }, { "color": "white", "type": "pawn", "hasBeenMoved": false }, { "color": "white", "type": "pawn", "hasBeenMoved": false }, { "color": "white", "type": "pawn", "hasBeenMoved": false }], [{ "color": "white", "type": "rook", "hasBeenMoved": false }, { "color": "white", "type": "knight", "hasBeenMoved": false }, { "color": "white", "type": "bishop", "hasBeenMoved": false }, { "color": "white", "type": "queen", "hasBeenMoved": false }, { "color": "white", "type": "king", "hasBeenMoved": false }, { "color": "white", "type": "bishop", "hasBeenMoved": false }, { "color": "white", "type": "knight", "hasBeenMoved": false }, { "color": "white", "type": "rook", "hasBeenMoved": false }]];
-const getStartingState = (): Promise<RewindableReducerState<Board, ChessMove>> => {
+export const getStartingState = (): Promise<RewindableReducerState<GameStateDto, ChessMove>> => {
     return new Promise((resolve, reject) => {
-        const board = new Board(startingPieces).toBuilder().setAvailableMoves().toBoard();
-        const initialRewindableBoardState = makeInitialState<Board, ChessMove>(board);
-        return resolve(initialRewindableBoardState);
+        resolve(makeStartingRewindableState())
     })
 }
 
-export const saveBoardState = (boardState: RewindableReducerState<Board, ChessMove>): Promise<void> => {
-    return new Promise((resolve, reject) => {
-        fs.writeFile(BOARD_STATE_FILE, JSON.stringify(boardState), ENCODING, (err) => {
-            if (err) {
-                reject(err)
-                return
-            }
-            console.log('Saved Board!');
-            resolve()
-        });
-    })
+export const saveBoardState = (boardState: RewindableReducerState<GameStateDto, ChessMove>): Promise<void> => {
+    return writeToFile(BOARD_STATE_FILE, JSON.stringify(boardState))
+        .then(() => console.log('Saved Board'))
 }
 
-export const retrieveBoardState = (): Promise<RewindableReducerState<Board, ChessMove>> => {
-    return new Promise((resolve, reject) => {
-        fs.readFile(BOARD_STATE_FILE, ENCODING, (err, data) => {
-            if (err) {
-                console.error(err)
-                reject(err)
-                return
+export const retrieveBoardState = (): Promise<RewindableReducerState<GameStateDto, ChessMove>> => {
+    return readFile(BOARD_STATE_FILE)
+        .then(fileContent => {
+            const serDeBoardState = JSON.parse(fileContent) as SerDeRewindableReducerState<GameStateDto, ChessMove>;
+            const boardState: RewindableReducerState<GameStateDto, ChessMove> = {
+                ...serDeBoardState,
+                currentState: gameStateDtoAsClass(serDeBoardState.currentState),
+                pastStates: serDeBoardState.pastStates.map(gameStateDtoAsClass),
+                futureStates: serDeBoardState.futureStates.map(gameStateDtoAsClass),
+                pastActions: serDeBoardState.pastActions.map(chessMoveAsClass),
+                futureActions: serDeBoardState.futureActions.map(chessMoveAsClass)
             }
-            try {
-                const serDeBoardState = JSON.parse(data) as SerDeRewindableReducerState<Board, ChessMove>;
-                const boardState: RewindableReducerState<Board, ChessMove> = {
-                    ...serDeBoardState,
-                    currentState: boardAsClass(serDeBoardState.currentState),
-                    pastStates: serDeBoardState.pastStates.map(boardAsClass),
-                    futureStates: serDeBoardState.futureStates.map(boardAsClass),
-                    pastActions: serDeBoardState.pastActions.map(chessMoveAsClass),
-                    futureActions: serDeBoardState.futureActions.map(chessMoveAsClass)
-                }
-                resolve(boardState)
-            } catch (error) {
-                reject(error)
-            }
+            return boardState
         })
-    })
 }

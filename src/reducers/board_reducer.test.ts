@@ -1,11 +1,11 @@
 import { boardReducer } from './board_reducer';
 import { u, e, m } from '../models/piece_shorthand';
-import { Board } from '../models/board';
 import { IllegalMoveError } from '../utils/assert';
 import { whitePawnJustReachedEndOfBoardAtRow0Col6 } from '../models/arrangements';
+import { startingBoard, Board } from '../models/board';
 
 test('first move works', () => {
-    const boardAtStart = new Board();
+    const boardAtStart = startingBoard;
     const boardAfterMove = boardReducer(boardAtStart, {
         type: 'move',
         piece: u('⚪♟'),
@@ -96,10 +96,10 @@ describe('castling', () => {
         })
 
 
-        expect(initialBoard.getAllPieceLocations('white')).toHaveLength(16)
-        expect(initialBoard.getAllPieceLocations('black')).toHaveLength(16)
-        expect(boardAfterCastle.getAllPieceLocations('white')).toHaveLength(16)
-        expect(boardAfterCastle.getAllPieceLocations('black')).toHaveLength(16)
+        expect(Board.getAllPieceLocations(initialBoard, 'white')).toHaveLength(16)
+        expect(Board.getAllPieceLocations(initialBoard, 'black')).toHaveLength(16)
+        expect(Board.getAllPieceLocations(boardAfterCastle, 'white')).toHaveLength(16)
+        expect(Board.getAllPieceLocations(boardAfterCastle, 'black')).toHaveLength(16)
 
         expect(boardAfterCastle.pieces).toEqual(
             [
@@ -138,10 +138,10 @@ describe('castling', () => {
             moveTo: { rowIndex: 7, columnIndex: 0 }
         })
 
-        expect(initialBoard.getAllPieceLocations('white')).toHaveLength(16)
-        expect(initialBoard.getAllPieceLocations('black')).toHaveLength(16)
-        expect(boardAfterCastle.getAllPieceLocations('white')).toHaveLength(16)
-        expect(boardAfterCastle.getAllPieceLocations('black')).toHaveLength(16)
+        expect(Board.getAllPieceLocations(initialBoard, 'white')).toHaveLength(16)
+        expect(Board.getAllPieceLocations(initialBoard, 'black')).toHaveLength(16)
+        expect(Board.getAllPieceLocations(boardAfterCastle, 'white')).toHaveLength(16)
+        expect(Board.getAllPieceLocations(boardAfterCastle, 'black')).toHaveLength(16)
 
         expect(boardAfterCastle.pieces).toEqual(
             [
@@ -157,126 +157,6 @@ describe('castling', () => {
         )
     })
 })
-
-describe('illegal move throws error', () => {
-    test('cannot move empty piece', () => {
-        const boardAtStart = new Board();
-        const makeIllegalMove = () => boardReducer(boardAtStart, {
-            type: 'move',
-            piece: u('⚪♟'),
-            moveFrom: { rowIndex: 5, columnIndex: 0 },
-            moveTo: { rowIndex: 4, columnIndex: 0 },
-        })
-
-        expect(makeIllegalMove).toThrow(IllegalMoveError)
-    });
-
-    test('cannot move onto a piece of own color', () => {
-        const boardAtStart = new Board();
-        const makeIllegalMove = () => boardReducer(boardAtStart, {
-            type: 'move',
-            piece: u('⚪♟'),
-            moveFrom: { rowIndex: 6, columnIndex: 0 },
-            moveTo: { rowIndex: 6, columnIndex: 1 },
-        })
-
-        expect(makeIllegalMove).toThrow(IllegalMoveError)
-    });
-
-    test('cannot perform meaningless move', () => {
-        const boardAtStart = new Board();
-        const makeIllegalMove = () => boardReducer(boardAtStart, {
-            type: 'move',
-            piece: u('⚪♟'),
-            moveFrom: { rowIndex: 6, columnIndex: 0 },
-            moveTo: { rowIndex: 6, columnIndex: 0 },
-        })
-
-        expect(makeIllegalMove).toThrow(IllegalMoveError)
-    });
-
-    test('piece must at designated location', () => {
-        const boardAtStart = new Board();
-        const makeIllegalMove = () => boardReducer(boardAtStart, {
-            type: 'move',
-            piece: u('⚫🤴'),
-            moveFrom: { rowIndex: 6, columnIndex: 0 },
-            moveTo: { rowIndex: 6, columnIndex: 1 },
-        })
-
-        expect(makeIllegalMove).toThrow(IllegalMoveError)
-    });
-
-    test('piece to capture must be at destination', () => {
-        const boardBeforeCapture = new Board(
-            [
-                [u('⚫🏰'), u('⚫🐴'), u('⚫⛪'), u('⚫👸'), u('⚫🤴'), u('⚫⛪'), u('⚫🐴'), u('⚫🏰')],
-                [u('⚫♟'), u('⚫♟'), u('⚫♟'), u('⚫♟'), u('⚫♟'), u('⚫♟'), u('⚫♟'), e('🕳 🕳')],
-                [e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), m('⚫♟')],
-                [e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳')],
-                [e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳')],
-                [e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), m('⚪♟'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳')],
-                [m('⚪♟'), u('⚪♟'), u('⚪♟'), e('🕳 🕳'), u('⚪♟'), u('⚪♟'), u('⚪♟'), u('⚪♟')],
-                [u('⚪🏰'), u('⚪🐴'), u('⚪⛪'), u('⚪👸'), u('⚪🤴'), u('⚪⛪'), u('⚪🐴'), u('⚪🏰')],
-            ],
-            'white'
-        )
-        const makeIllegalMove = () => boardReducer(boardBeforeCapture, {
-            type: 'capture',
-            piece: u('⚪⛪'),
-            moveFrom: { rowIndex: 7, columnIndex: 2 },
-            moveTo: { rowIndex: 3, columnIndex: 6 },
-            capturingPiece: m('⚫♟')
-        })
-        expect(makeIllegalMove).toThrow(IllegalMoveError)
-    });
-
-    test('promote pawn piece not at location', () => {
-        const boardBeforeCapture = new Board(whitePawnJustReachedEndOfBoardAtRow0Col6, 'black')
-        const tryMismatchedPieceAtLocation = () => boardReducer(boardBeforeCapture, {
-            type: 'promote_pawn',
-            piece: u('⚪♟'),
-            location: { rowIndex: 0, columnIndex: 0 },
-            promotedTo: 'queen'
-        })
-        expect(tryMismatchedPieceAtLocation).toThrow(IllegalMoveError)
-    });
-
-    test('promote pawn not at end of board', () => {
-        const boardBeforeCapture = new Board(whitePawnJustReachedEndOfBoardAtRow0Col6, 'black')
-        const tryPawnNotAtEndOfBoard = () => boardReducer(boardBeforeCapture, {
-            type: 'promote_pawn',
-            piece: u('⚪♟'),
-            location: { rowIndex: 6, columnIndex: 0 },
-            promotedTo: 'queen'
-        })
-
-        expect(tryPawnNotAtEndOfBoard).toThrow(IllegalMoveError)
-    });
-
-    test('cannot promote queen', () => {
-        const boardBeforeCapture = new Board(whitePawnJustReachedEndOfBoardAtRow0Col6, 'black')
-        const tryWrongPieceType = () => boardReducer(boardBeforeCapture, {
-            type: 'promote_pawn',
-            piece: u('⚪👸'),
-            location: { rowIndex: 7, columnIndex: 3 },
-            promotedTo: 'queen'
-        })
-        expect(tryWrongPieceType).toThrow(IllegalMoveError)
-    });
-
-    test('cannot pass wrong color for pawn at location', () => {
-        const boardBeforeCapture = new Board(whitePawnJustReachedEndOfBoardAtRow0Col6, 'black')
-        const tryWrongColor = () => boardReducer(boardBeforeCapture, {
-            type: 'promote_pawn',
-            piece: u('⚫♟'),
-            location: { rowIndex: 0, columnIndex: 6 },
-            promotedTo: 'queen'
-        })
-        expect(tryWrongColor).toThrow(IllegalMoveError)
-    });
-})
-
 
 test('promote pawn', () => {
     const boardBeforeCapture = new Board(whitePawnJustReachedEndOfBoardAtRow0Col6, 'black')

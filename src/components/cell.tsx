@@ -1,9 +1,10 @@
 import React, { useCallback, useMemo } from 'react';
-import { PieceType, TPiece, Piece } from '../models/piece';
+import { PieceType, Piece } from '../models/piece';
 import { useBoardContext } from '../context';
 import { Cell } from '../models/cell';
-import { BoardColor, Board } from '../models/board';
 import { PieceIcon } from './piece_icon';
+import { BoardUtils, BoardColor } from '../utils/board_utils';
+import { Board } from '../models/board';
 
 const PAWN_PROMOTION_PIECE_TYPES = ['queen', 'knight', 'rook', 'bishop'] as PieceType[];
 
@@ -18,11 +19,11 @@ export const CellComponent = ({ rowIndex, columnIndex }: CellProps) => {
     );
 
     const {
-        board, setSelectedCell, selectedCell, availablePlacesToMove, dispatchAction
+        gameState, setSelectedCell, selectedCell, availablePlacesToMove, dispatchAction
     } = useBoardContext();
 
-    const cellBoardColor = Board.getCellColor(thisCell);
-    const currentPiece = board.getPiece(thisCell);
+    const cellBoardColor = BoardUtils.getCellColor(thisCell);
+    const currentPiece = Board.getPiece(gameState.board, thisCell);
     const isSelected = selectedCell && Cell.equals(selectedCell, thisCell);
 
     const toggleSelected = useCallback(
@@ -42,7 +43,7 @@ export const CellComponent = ({ rowIndex, columnIndex }: CellProps) => {
     );
 
     const isPromotablePawn = currentPiece && currentPiece.type === 'pawn' &&
-        Board.isCellAlongFarRowForColor(thisCell, currentPiece.color);
+        BoardUtils.isCellAlongFarRowForColor(thisCell, currentPiece.color);
     const selectPromotion = useCallback(
         (type: PieceType) => currentPiece && dispatchAction({
             type: 'promote_pawn',
@@ -53,8 +54,8 @@ export const CellComponent = ({ rowIndex, columnIndex }: CellProps) => {
         [dispatchAction, thisCell, currentPiece]
     )
 
-    const isLastMovedPiece = useMemo(() => Cell.equals(board.lastMovedPiece?.cell, thisCell), [board, thisCell])
-    
+    const isLastMovedPiece = useMemo(() => Cell.equals(gameState.board.lastMovedPiece?.cell, thisCell), [gameState.board, thisCell])
+
     const classNames = optionalClassNames([[isSelected, 'selected'], [isAvailableToMoveTo, 'available'], [isLastMovedPiece, 'lastMoved']])
     return (
         <div
@@ -98,7 +99,7 @@ const PromotablePawnOptions = ({ color, selectPromotion }: PromotablePawnOptions
 }
 
 type PromotablePieceProps = {
-    piece: TPiece
+    piece: Piece
     selectPromotion: (type: PieceType) => void;
 }
 const PromotablePiece = ({ piece, selectPromotion }: PromotablePieceProps) => {
