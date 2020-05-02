@@ -1,4 +1,12 @@
+# Simple Chess Board
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+
+## Quickstart
+ - Start backend server `npm run api-start`
+ - Start UI dev server `npm run start`
+ - Open two browser windows, one for white and one for black
+    - May be on different clients if you use the "On Your Network" URL and specifiy the [API URL in the UI source](src/api_client.ts#7) to point to that IP instead of localhost
+- Play Chess!
 
 ## Available Scripts
 
