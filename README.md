@@ -8,6 +8,9 @@ This project was bootstrapped with [Create React App](https://github.com/faceboo
     - May be on different clients if you use the "On Your Network" URL and specifiy the [API URL in the UI source](src/api_client.ts#7) to point to that IP instead of localhost
 - Play Chess!
 
+### Chess Icon Attribution
+[en:User:Cburnett](https://commons.wikimedia.org/wiki/Category:SVG_chess_pieces) / [CC BY-SA](http://creativecommons.org/licenses/by-sa/3.0/)
+
 ## Available Scripts
 
 In the project directory, you can run:
