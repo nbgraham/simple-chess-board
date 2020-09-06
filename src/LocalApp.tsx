@@ -1,14 +1,14 @@
 import React from 'react';
 import './App.css';
-import { SmartBoard } from './components/board';
+import { BoardComponent } from './components/board';
 import { BoardContextProvider } from './context';
 import { ScorePanel } from './components/score_panel';
-import { API_CLIENT } from './api_client';
+import { API_CLIENT as MockApiClient } from './__mocks__/api_client';
 
 type AppState = {
   hasError: boolean
 }
-class App extends React.Component<{}, AppState> {
+export class LocalApp extends React.Component<{}, AppState> {
   state = { hasError: false }
 
   static getDerivedStateFromError(error: Error) {
@@ -21,7 +21,7 @@ class App extends React.Component<{}, AppState> {
   reload = () => this.setState({ hasError: false })
 
   reset = () => {
-    API_CLIENT.resetBoard()
+    MockApiClient.resetBoard()
     this.reload();
   }
 
@@ -39,7 +39,7 @@ class App extends React.Component<{}, AppState> {
     }
 
     return (
-      <BoardContextProvider apiClient={API_CLIENT}>
+      <BoardContextProvider apiClient={MockApiClient} controlBothSides={true}>
         <div style={{
           display: 'flex',
           flexDirection: 'row',
@@ -48,10 +48,10 @@ class App extends React.Component<{}, AppState> {
           overflow: 'hidden'
         }}>
           <div style={{ flex: 1, overflow: 'auto' }}>
-            <ScorePanel />
+            <ScorePanel showAutoPlayStrategies={true} />
           </div>
           <div style={{ flex: 6 }}>
-            <SmartBoard />
+          <BoardComponent numColumns={8} numRows={8} />
           </div>
         </div>
       </BoardContextProvider>
@@ -59,4 +59,3 @@ class App extends React.Component<{}, AppState> {
   }
 }
 
-export default App;

@@ -15,6 +15,10 @@ export const Cell = {
     (!!cell && !!otherCell && cell.rowIndex === otherCell.rowIndex && cell.columnIndex === otherCell.columnIndex);
   },
 
+  hash: (cell?: Cell) => {
+    return cell ? `${cell.rowIndex}_${cell.columnIndex}` : ''
+  },
+
   toString: (cell: Cell) => {
     return `${BoardUtils.getLabelForColumn(cell.columnIndex)}${BoardUtils.getLabelForRow(cell.rowIndex)}`
   },

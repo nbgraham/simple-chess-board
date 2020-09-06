@@ -19,3 +19,7 @@ const isComparable = <T>(a: T | Comparable<T>): a is Comparable<T> =>
 export const flattenArray = <T>(array: T[][]) => array.reduce(
     (accumulatedArray, curArray) => [...accumulatedArray, ...curArray],
     [] as T[]);
+
+export const getRandomItem = <T>(array: Array<T>) => array[Math.floor(Math.random() * array.length)]
+
+export const average = (array: Array<number>) => array.reduce((sum, cur) => sum + cur, 0) / array.length

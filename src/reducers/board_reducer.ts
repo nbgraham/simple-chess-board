@@ -6,6 +6,8 @@ import { Piece } from '../models/piece';
 import { assert, checkForErrorType, IllegalMoveError } from '../utils/assert';
 
 export const boardReducer = produce((draftBoard: Board, action: ChessMove) => {
+  BoardDtoMutations.recordMove(draftBoard, action);
+
   switch (action.type) {
     case 'promote_pawn':
       const promotedPiece = Piece.create(action.promotedTo, action.piece.color);

@@ -20,3 +20,4 @@ export const rangeAscendingExclusive = (startOrEndA: number, startOrEndB: number
 
 export const betweenInclusive = (low: number, test: number, high: number) =>
     low <= test && test <= high;
+    

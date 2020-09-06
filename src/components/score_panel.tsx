@@ -7,6 +7,7 @@ import { ChessMove } from '../models/chess_move';
 import { Board } from '../models/board';
 import { BoardColor } from '../utils/board_utils';
 import { last } from '../utils/array_utils';
+import { RandomStrategy } from '../computer_players/stategies/random_strategy';
 
 const buttonStyle: React.CSSProperties = { fontSize: 20, margin: 5 };
 const scoreBoardSectionStyle: React.CSSProperties = { flex: 2, margin: 12 };
@@ -16,8 +17,12 @@ function definedAndEqual<T>(a?: T, b?: T) {
   return !!a && !!b && a === b
 }
 
-export const ScorePanel = () => {
-  const { gameState, resetBoard, undoLastMove, redoMove, moveHistory, playerColor, playerThatCanRedo } = useBoardContext();
+type Props = {
+  showAutoPlayStrategies?: boolean;
+}
+
+export const ScorePanel: React.FC<Props> = ({ showAutoPlayStrategies }) => {
+  const { gameState, resetBoard, undoLastMove, redoMove, moveHistory, playerColor, playerThatCanRedo, dispatchAction } = useBoardContext();
   const copyBoard = () => copyToClipboard(Board.asShorthand(gameState.board))
 
   const lastMoveTakeBy = last(moveHistory)?.piece.color
@@ -53,10 +58,37 @@ export const ScorePanel = () => {
           <CapturedPiecesDisplay capturedPieces={gameState.board.piecesCapturedByBlack} />
         </div>
       </div>
+      {showAutoPlayStrategies &&
+        <div style={scoreBoardSectionStyle}>
+          <AutoPlayStrategies board={gameState.board} sendMove={dispatchAction} />
+        </div>
+      }
       <div style={{ ...scoreBoardSectionStyle }}>
         <MoveHistory completedMoves={moveHistory} />
       </div>
     </div>
+  );
+}
+
+const autoPlayStrategies = [
+  {
+    label: 'Random',
+    strategy: new RandomStrategy()
+  }
+]
+
+type AutoPlayStrategies = {
+  board: Board,
+  sendMove: (move: ChessMove) => void,
+}
+const AutoPlayStrategies: React.FC<AutoPlayStrategies> = ({ board, sendMove }) => {
+  return (
+    <>
+      AutoPlay:
+      {autoPlayStrategies.map((strategy) => (
+        <button key={strategy.label} onClick={() => sendMove(strategy.strategy.getNextMove(board))}>{strategy.label}</button>
+      ))}
+    </>
   );
 }
 

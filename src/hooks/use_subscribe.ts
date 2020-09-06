@@ -1,6 +1,6 @@
 import { useEffect, DependencyList, useCallback } from "react";
 
-type Subscription = {
+export type Subscription = {
     unsubscribe: () => void;
 }
 

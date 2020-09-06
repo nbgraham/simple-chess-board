@@ -14,7 +14,9 @@ export class GameState {
 
     static computeAvailableMoves(board: Board) {
         const availableMovesService = new AvailableMovesService(board, board.currentTurn);
-        return availableMovesService.getAllAvailableMoves()
+
+        const availableMoves = availableMovesService.getAllAvailableMoves();
+        return availableMoves;
     }
 
     static computeWinner(board: Board) {

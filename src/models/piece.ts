@@ -18,6 +18,9 @@ export const Piece = {
     (!pieceA && !pieceB) ||
     (!!pieceA && !!pieceB && pieceA.type === pieceB.type && pieceA.color === pieceB.color),
 
+  hash: (piece?: Piece | null) =>
+    piece ? `${piece.type}_${piece.color}` : '',
+
   toString: (piece?: Piece | null) => piece ? `${piece.color} ${piece.type}` : '',
 
   getRelativeValue: (piece: Piece) => {

@@ -3,6 +3,7 @@ import { RewindableReducerState, SerDeRewindableReducerState, UNDO, RESET, REDO 
 import { makeRewindableReducer } from '../utils/rewindable_reducer';
 import { makeStartingRewindableState, gameStateReducer } from '../reducers/game_state_reducer';
 import { GameStateDto } from '../models/game_state_dto';
+import { IApiClient } from '../api_client';
 
 const initialRewindableBoardState = makeStartingRewindableState();
 const rewindableReducer = makeRewindableReducer(gameStateReducer, initialRewindableBoardState)
@@ -15,12 +16,9 @@ type BoardListenersReducerAction = {
     type: 'remove'
     listener: BoardListener
 }
-class MockApiClient {
+class MockApiClient implements IApiClient {
     gameState: RewindableReducerState<GameStateDto, ChessMove> = initialRewindableBoardState
     boardListeners: Array<BoardListener> = []
-
-    constructor() {
-    }
 
     static boardListenerReducer(prevListeners: Array<BoardListener>, action: BoardListenersReducerAction) {
         if (action.type === 'add') {

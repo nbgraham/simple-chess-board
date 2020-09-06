@@ -1,8 +1,10 @@
-import { whitePawnJustReachedEndOfBoardAtRow0Col6 } from "../models/arrangements";
+import { whitePawnJustReachedEndOfBoardAtRow0Col6, fastestWhiteInCheckMatePosition } from "../models/arrangements";
 import { Board } from "../models/board";
 import { c } from "../models/cell_shorthand";
 import { e, m, u } from "../models/piece_shorthand";
 import { AvailableMovesService } from "./available_moves";
+import { SerDeClass, boardDtoAsClass } from "../utils/serde";
+import { GameState } from "../models/game_state";
 
 test('simple move is available', () => {
     const boardAtStart = new Board();
@@ -337,5 +339,107 @@ describe('illegal move not returned', () => {
             location: { rowIndex: 0, columnIndex: 6 },
             promotedTo: 'queen'
         })
+    });
+})
+
+test('white is in check', () => {
+    const boardBeforeCapture = new Board(
+        [
+            [u('⚫🏰'), u('⚫🐴'), u('⚫⛪'), e('🕳 🕳'), u('⚫🤴'), u('⚫⛪'), u('⚫🐴'), u('⚫🏰')],
+            [u('⚫♟'), u('⚫♟'), u('⚫♟'), u('⚫♟'), e('🕳 🕳'), u('⚫♟'), u('⚫♟'), u('⚫♟')],
+            [e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳')],
+            [e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), m('⚫♟'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳')],
+            [e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), m('⚪♟'), m('⚪♟'), m('⚫👸')],
+            [e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳')],
+            [u('⚪♟'), u('⚪♟'), u('⚪♟'), u('⚪♟'), u('⚪♟'), e('🕳 🕳'), e('🕳 🕳'), u('⚪♟')],
+            [u('⚪🏰'), u('⚪🐴'), u('⚪⛪'), u('⚪👸'), u('⚪🤴'), u('⚪⛪'), u('⚪🐴'), u('⚪🏰')]
+        ],
+        'white'
+    )
+    expect(AvailableMovesService.isInCheck(boardBeforeCapture, 'white')).toBe(true);
+    expect(AvailableMovesService.getColorThatIsInCheckMate(boardBeforeCapture)).toBe('white');
+    expect(GameState.computeWinner(boardBeforeCapture)).toBe('black');
+})
+
+test('stalemate', () => {
+    const boardBeforeCapture = new Board(
+        [
+            [u('⚫🏰'), u('⚫🐴'), e('🕳 🕳'), e('🕳 🕳'), u('⚫🤴'), e('🕳 🕳'), e('🕳 🕳'), u('⚫🏰')],
+            [u('⚫♟'), e('🕳 🕳'), e('🕳 🕳'), u('⚫♟'), e('🕳 🕳'), u('⚫♟'), e('🕳 🕳'), u('⚫♟')],
+            [e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), m('⚫♟'), e('🕳 🕳'), e('🕳 🕳'), m('⚫♟')],
+            [e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳')],
+            [e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳')],
+            [m('⚫♟'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), m('⚫⛪'), e('🕳 🕳')],
+            [e('🕳 🕳'), m('⚫👸'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳')],
+            [e('🕳 🕳'), m('⚫⛪'), e('🕳 🕳'), m('⚪🤴'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳')]
+          ],
+        'white'
+    )
+
+    expect(AvailableMovesService.isStalemate(boardBeforeCapture)).toBe(true);
+})
+
+test('check', () => {
+    const boardBeforeCapture = new Board(
+        [
+            [u('⚫🏰'), u('⚫🐴'), e('🕳 🕳'), e('🕳 🕳'), u('⚫🤴'), e('🕳 🕳'), e('🕳 🕳'), u('⚫🏰')],
+            [u('⚫♟'), e('🕳 🕳'), e('🕳 🕳'), u('⚫♟'), e('🕳 🕳'), u('⚫♟'), e('🕳 🕳'), u('⚫♟')],
+            [e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), m('⚫♟'), e('🕳 🕳'), e('🕳 🕳'), m('⚫♟')],
+            [e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳')],
+            [e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳')],
+            [m('⚫♟'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), m('⚫⛪'), e('🕳 🕳')],
+            [e('🕳 🕳'), m('⚫👸'), e('🕳 🕳'), m('⚪🤴'),  e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳')],
+            [e('🕳 🕳'), m('⚫⛪'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳'), e('🕳 🕳')]
+          ],
+        'white'
+    )
+
+    expect(AvailableMovesService.isInCheck(boardBeforeCapture, 'white')).toBe(true);
+})
+
+test('new in check is faster', () => {
+    const RUNS = 100;
+    const BOARD = new Board();
+
+    const start = performance.now();
+    for (let i = 0; i < RUNS; i++) {
+        AvailableMovesService.isInCheck(BOARD, 'white')
+        AvailableMovesService.isInCheck(BOARD, 'black')
+    }
+    const middle = performance.now();
+    for (let i = 0; i < RUNS; i++) {
+        AvailableMovesService.deprecated_isInCheck(BOARD, 'white')
+        AvailableMovesService.deprecated_isInCheck(BOARD, 'black')
+    }
+    const end = performance.now();
+
+    const newTime = middle - start;
+    const oldTime = end - middle;
+
+    expect(newTime).toBeLessThan(oldTime / 3);
+})
+
+describe('old board tests', () => {
+    test('no one is in check at start', () => {
+        const boardAtStart = new Board();
+        expect(AvailableMovesService.isInCheck(boardAtStart, 'black')).toBe(false);
+        expect(AvailableMovesService.isInCheck(boardAtStart, 'white')).toBe(false);
+    });
+
+    const getFastestWhiteInCheckMate = () => new Board(
+        fastestWhiteInCheckMatePosition,
+        'white'
+    )
+
+    test('fastest checkmate', () => {
+        const whiteInCheckMate = getFastestWhiteInCheckMate();
+        expect(AvailableMovesService.getColorThatIsInCheckMate(whiteInCheckMate)).toBe('white');
+    });
+
+    test('resume: fastest checkmate', () => {
+        const whiteInCheckMate = getFastestWhiteInCheckMate();
+        const serDeBoard: SerDeClass<Board> = JSON.parse(JSON.stringify(whiteInCheckMate));
+        const resumed = boardDtoAsClass(serDeBoard);
+        expect(AvailableMovesService.getColorThatIsInCheckMate(resumed)).toBe('white');
     });
 })

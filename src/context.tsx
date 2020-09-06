@@ -1,12 +1,13 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Cell } from './models/cell';
 import { ChessMove } from './models/chess_move';
-import { API_CLIENT } from './api_client';
+import { IApiClient } from './api_client';
 import { Board } from './models/board';
 import { useSubscribe } from './hooks/use_subscribe';
 import { BoardColor } from './utils/board_utils';
 import { chessMoveAsClass } from './utils/serde';
 import { GameStateDto, emptyGameState } from './models/game_state_dto';
+import { Piece } from './models/piece';
 
 const initialGameState = emptyGameState;
 
@@ -39,14 +40,16 @@ const BoardContext = React.createContext<TBoardContext>({
 export const useBoardContext = () => useContext(BoardContext);
 type BoardContextProviderProps = {
     children: React.ReactNode;
+    controlBothSides?: boolean;
+    apiClient: IApiClient;
 }
-export const BoardContextProvider = ({ children }: BoardContextProviderProps) => {
+export const BoardContextProvider = ({ children, apiClient, controlBothSides }: BoardContextProviderProps) => {
     const [gameState, setGameState] = useState(initialGameState);
     const [moveHistory, setMoveHistory] = useState([] as ChessMove[]);
     const [playerColor, setPlayerColor] = useState<BoardColor | undefined>()
     const [playerThatCanRedo, setPlayerThatCanRedo] = useState<BoardColor | undefined>()
 
-    useSubscribe(() => API_CLIENT.subcribeToBoard(b => {
+    useSubscribe(() => apiClient.subcribeToBoard(b => {
         setGameState(b.currentState)
         setMoveHistory(b.pastActions.map(chessMoveAsClass))
         setPlayerThatCanRedo(b.futureActions.length > 0 ? chessMoveAsClass(b.futureActions[0]).piece.color : undefined)
@@ -68,29 +71,34 @@ export const BoardContextProvider = ({ children }: BoardContextProviderProps) =>
         }
     }, [gameState, selectedCell]);
 
+    const pieceIsValidForPlayerToMove = useCallback(
+        (piece: Piece) => controlBothSides || (playerColor && piece.color === playerColor),
+        [controlBothSides, playerColor]
+    );
+
     const tryToSelectCell = useCallback(
         (cellToSelect?: Cell) => {
             if (cellToSelect === undefined) {
                 return setSelectedCell(undefined);
             }
             const currentPiece = Board.getPiece(gameState.board, cellToSelect);
-            if (!!currentPiece && currentPiece.color === playerColor) {
+            if (!!currentPiece && pieceIsValidForPlayerToMove(currentPiece)) {
                 return setSelectedCell(cellToSelect);
             }
         },
-        [gameState, setSelectedCell, playerColor]
+        [gameState, setSelectedCell, pieceIsValidForPlayerToMove]
     )
 
     const dispatchAction = useCallback((move: ChessMove) => {
-        if (playerColor && move.piece.color === playerColor) {
+        if (pieceIsValidForPlayerToMove(move.piece)) {
             if (move.type === 'promote_pawn' || move.piece.color === gameState.board.currentTurn) {
-                API_CLIENT.sendMove(move)
+                apiClient.sendMove(move)
             }
         }
-    }, [playerColor, gameState])
-    const resetBoard = useCallback(() => API_CLIENT.resetBoard(), [])
-    const undoLastMove = useCallback(() => API_CLIENT.undoMove(), [])
-    const redoMove = useCallback(() => API_CLIENT.redoMove(), [])
+    }, [playerColor, gameState, pieceIsValidForPlayerToMove])
+    const resetBoard = useCallback(() => apiClient.resetBoard(), [])
+    const undoLastMove = useCallback(() => apiClient.undoMove(), [])
+    const redoMove = useCallback(() => apiClient.redoMove(), [])
 
     const boardContextValue: TBoardContext = useMemo(() => ({
         gameState,

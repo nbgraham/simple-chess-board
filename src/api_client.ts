@@ -3,8 +3,17 @@ import { ChessMove } from './models/chess_move';
 import { RewindableReducerState, SerDeRewindableReducerState } from './utils/rewindable_reducer';
 import { SerDeClass, boardDtoAsClass, chessMoveAsClass, gameStateDtoAsClass } from './utils/serde';
 import { GameStateDto } from './models/game_state_dto';
+import { Subscription } from './hooks/use_subscribe';
 
 const API_URL = 'http://192.168.1.191:8000';
+
+export interface IApiClient {
+    subcribeToBoard(cb: (s: SerDeRewindableReducerState<GameStateDto, ChessMove>) => void): Subscription;
+    sendMove(move: ChessMove): void;
+    undoMove(): void;
+    redoMove(): void;
+    resetBoard(): void;
+}
 
 export const chessServerEvents = {
     subscribeToBoard: 'subscribe_to_board',
@@ -15,7 +24,7 @@ export const chessServerEvents = {
     resetBoard: 'reset_board',
 }
 
-class ApiClient {
+class ApiClient implements IApiClient {
     socket: SocketIOClient.Socket;
 
     constructor(apiUrl: string) {
