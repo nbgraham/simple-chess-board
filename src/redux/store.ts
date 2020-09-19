@@ -14,7 +14,7 @@ const { actions: gameStateActions, reducer: gameStateReducer } = createSlice({
     name: 'gameState',
     initialState: { gameState: emptyGameState, availablePlacesToMove: [] } as GameState,
     reducers: {
-        setGameState(state, action: PayloadAction<GameStateDto>){
+        setGameState(state, action: PayloadAction<GameStateDto>) {
             state.gameState = action.payload
             state.selectedCell = undefined
             state.availablePlacesToMove = getAvailablePlacesToMove(state.gameState, state.selectedCell)

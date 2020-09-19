@@ -4,24 +4,28 @@ import { useApiClient } from "../api/use_api_client";
 import { API_CLIENT, IApiClient } from "../api_client";
 import { BoardContextProviderProps, TBoardContext } from "../context";
 import { ChessMove } from "../models/chess_move";
-import { useDispatchAppAction, useTypedSelector } from "./react_redux";
+import { useDispatchAppAction, useTypedSelector, useDispatchAppThunk } from "./react_redux";
 import { gameStateActions, store, playerActions, moveHistoryActions } from "./store";
-import { useAllowed } from "../hooks/use_allowed";
-import { useConditionalExecution } from "../hooks/use_conditional";
 import { useSubscribe } from "../hooks/use_subscribe";
 import { BoardColor } from "../utils/board_utils";
 import { chessMoveAsClass } from "../utils/serde";
 import { SerDeRewindableReducerState } from "../utils/rewindable_reducer";
 import { GameStateDto } from "../models/game_state_dto";
-import { useApiClientOfType } from "../hooks/use_api_client_of_type";
+import { useApiClientOfType, ApiClientType } from "../hooks/use_api_client_of_type";
+import { thunks } from "./thunks";
+import { useShallowMemo } from "../hooks/use_shallow_memo";
 
-const ApiClientContext = React.createContext<IApiClient>(API_CLIENT);
+const ApiClientContext = React.createContext({
+    apiClient: API_CLIENT as IApiClient,
+    apiClientType: 'server' as ApiClientType
+});
 
 export const ReduxBoardContextProvider: React.FC<BoardContextProviderProps> = ({ children, apiClientType, controlBothSides }) => {
     const apiClient = useApiClientOfType(apiClientType);
+    const context = useShallowMemo({ apiClient, apiClientType });
 
     return (
-        <ApiClientContext.Provider value={apiClient}>
+        <ApiClientContext.Provider value={context}>
             <Provider store={store}>
                 <SetInitialReduxValues controlBothSides={controlBothSides} />
                 <SubscribeReduxStoreToApiClient />
@@ -66,7 +70,7 @@ export const SubscribeReduxStoreToApiClient: React.FC = () => {
         [setGameState, setMoveHistory, setPlayerThatCanRedo]
     )
 
-    const apiClient = useContext(ApiClientContext);
+    const { apiClient } = useContext(ApiClientContext);
     useSubscribe(() => apiClient.subcribeToBoard(onBoardChange), [apiClient, onBoardChange])
 
     return null;
@@ -76,19 +80,18 @@ export const useReduxBoardContext = (): TBoardContext => {
     const gameState = useTypedSelector(state => state.gameState.gameState)
     const availablePlacesToMove = useTypedSelector(state => state.gameState.availablePlacesToMove)
     const moveHistory = useTypedSelector(state => state.moveHistory)
-    const playerColor = useTypedSelector(state => state.player.selectedColor)
-    const controlBothSides = useTypedSelector(state => state.player.controlBothSides)
 
-    const setSelectedCell = useDispatchAppAction(gameStateActions.setSelectedCell);
-    const setPlayerColor = useDispatchAppAction(playerActions.setSelectedColor);
+    const { apiClient, apiClientType } = useContext(ApiClientContext);
 
-    const { canSelectCell, moveIsValidForCurrentPlayer } = useAllowed({ controlBothSides, playerColor, board: gameState.board })
+    const setPlayerColor = useDispatchAppAction(playerActions.setSelectedColor)
+    const tryToSelectCell = useDispatchAppThunk(thunks.tryToSelectCell);
+    const _tryToMakeMove = useDispatchAppThunk(thunks.tryToMakeMove);
+    const tryToMakeMove = useCallback(
+        (move: ChessMove) => _tryToMakeMove({ move, apiClientType }),
+        [_tryToMakeMove, apiClientType]
+    )
 
-    const apiClient = useContext(ApiClientContext);
-    const { resetBoard, undoLastMove, redoMove, makeMove } = useApiClient(apiClient);
-
-    const tryToSelectCell = useConditionalExecution(setSelectedCell, canSelectCell);
-    const tryToMakeMove = useConditionalExecution(makeMove, moveIsValidForCurrentPlayer);
+    const { resetBoard, undoLastMove, redoMove } = useApiClient(apiClient);
 
     return {
         gameState,
