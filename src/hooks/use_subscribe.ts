@@ -7,7 +7,13 @@ export type Subscription = {
 export const useSubscribe = <T extends Subscription>(subscribe: () => T, deps: DependencyList) => {
     const subscribeCallback = useCallback(subscribe, deps);
     useEffect(
-        () => subscribeCallback().unsubscribe,
+        () => {
+            const { unsubscribe } = subscribeCallback();
+            return () => {
+                console.log('Creating new subscription, so unsubscribing');
+                unsubscribe();
+            }
+        },
         [subscribeCallback]
     )
 }

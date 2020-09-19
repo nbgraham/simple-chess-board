@@ -24,7 +24,7 @@ type Props = {
 }
 
 export const ScorePanel: React.FC<Props> = ({ alwaysAllowUndoRedo, showAutoPlayStrategies }) => {
-  const { gameState, resetBoard, undoLastMove, redoMove, moveHistory, playerColor, playerThatCanRedo, dispatchAction } = useBoardContext();
+  const { gameState, resetBoard, undoLastMove, redoMove, moveHistory, playerColor, playerThatCanRedo, makeMove } = useBoardContext();
   const copyBoard = () => copyToClipboard(Board.asShorthand(gameState.board))
 
   const lastMoveTakeBy = last(moveHistory)?.piece.color
@@ -62,7 +62,7 @@ export const ScorePanel: React.FC<Props> = ({ alwaysAllowUndoRedo, showAutoPlayS
       </div>
       {showAutoPlayStrategies &&
         <div style={scoreBoardSectionStyle}>
-          <AutoPlayStrategies board={gameState.board} sendMove={dispatchAction} />
+          <AutoPlayStrategies board={gameState.board} sendMove={makeMove} />
         </div>
       }
       <div style={{ ...scoreBoardSectionStyle }}>

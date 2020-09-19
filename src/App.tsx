@@ -39,7 +39,7 @@ class App extends React.Component<{}, AppState> {
     }
 
     return (
-      <BoardContextProvider apiClient={API_CLIENT}>
+      <BoardContextProvider apiClientType={'server'}>
         <div style={{
           display: 'flex',
           flexDirection: 'row',

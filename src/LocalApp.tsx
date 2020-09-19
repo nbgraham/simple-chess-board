@@ -39,7 +39,7 @@ export class LocalApp extends React.Component<{}, AppState> {
     }
 
     return (
-      <BoardContextProvider apiClient={MockApiClient} controlBothSides={true}>
+      <BoardContextProvider apiClientType={'local'} controlBothSides={true}>
         <div style={{
           display: 'flex',
           flexDirection: 'row',

@@ -39,8 +39,8 @@ class MockApiClient implements IApiClient {
     }
 
     subcribeToBoard(listener: BoardListener) {
+        listener(this.gameState)
         this.dispatch({ type: 'add', listener })
-        this.emitBoardUpdate()
         return {
             unsubscribe: () => { this.dispatch({ type: 'remove', listener }) }
         }
