@@ -8,6 +8,7 @@ import { Board } from '../models/board';
 import { BoardColor } from '../utils/board_utils';
 import { last } from '../utils/array_utils';
 import { RandomStrategy } from '../computer_players/stategies/random_strategy';
+import { MinimaxStrategy, MinimaxWithLocationStrategy } from '../computer_players/stategies/minimax_strategy';
 
 const buttonStyle: React.CSSProperties = { fontSize: 20, margin: 5 };
 const scoreBoardSectionStyle: React.CSSProperties = { flex: 2, margin: 12 };
@@ -19,16 +20,17 @@ function definedAndEqual<T>(a?: T, b?: T) {
 
 type Props = {
   showAutoPlayStrategies?: boolean;
+  alwaysAllowUndoRedo?: boolean;
 }
 
-export const ScorePanel: React.FC<Props> = ({ showAutoPlayStrategies }) => {
+export const ScorePanel: React.FC<Props> = ({ alwaysAllowUndoRedo, showAutoPlayStrategies }) => {
   const { gameState, resetBoard, undoLastMove, redoMove, moveHistory, playerColor, playerThatCanRedo, dispatchAction } = useBoardContext();
   const copyBoard = () => copyToClipboard(Board.asShorthand(gameState.board))
 
   const lastMoveTakeBy = last(moveHistory)?.piece.color
 
-  const currentPlayerCanRedo = definedAndEqual(playerColor, playerThatCanRedo)
-  const currentPlayerCanUndo = definedAndEqual(playerColor, lastMoveTakeBy)
+  const currentPlayerCanRedo = alwaysAllowUndoRedo || definedAndEqual(playerColor, playerThatCanRedo)
+  const currentPlayerCanUndo = alwaysAllowUndoRedo || definedAndEqual(playerColor, lastMoveTakeBy)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -74,6 +76,14 @@ const autoPlayStrategies = [
   {
     label: 'Random',
     strategy: new RandomStrategy()
+  },
+  {
+    label: 'Minimax',
+    strategy: new MinimaxStrategy()
+  },
+  {
+    label: 'Minimax With Location',
+    strategy: new MinimaxWithLocationStrategy(),
   }
 ]
 

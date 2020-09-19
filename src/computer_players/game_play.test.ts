@@ -86,7 +86,7 @@ describe.skip('simple strategies', () => {
     })
 })
 
-describe.skip('minimax strategy', () => {
+describe('minimax strategy', () => {
 
     test('minimax strategy beats random strategy', () => {
         const blackAdvantages = []

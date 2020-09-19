@@ -48,7 +48,7 @@ export class LocalApp extends React.Component<{}, AppState> {
           overflow: 'hidden'
         }}>
           <div style={{ flex: 1, overflow: 'auto' }}>
-            <ScorePanel showAutoPlayStrategies={true} />
+            <ScorePanel showAutoPlayStrategies={true} alwaysAllowUndoRedo={true} />
           </div>
           <div style={{ flex: 6 }}>
           <BoardComponent numColumns={8} numRows={8} />

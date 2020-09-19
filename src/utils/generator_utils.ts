@@ -1,6 +1,5 @@
-import { has } from "immer/dist/internal";
-
 export function makeEmptyGenerator<T>() {
+    // eslint-disable-next-line
     function* emptyGenerator(): Generator<T> {
         return;
     }

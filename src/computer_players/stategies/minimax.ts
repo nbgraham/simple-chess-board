@@ -17,8 +17,9 @@ export class Minimax<TNode, TEdge> {
     private readonly nodeIsTerminal: (node: TNode) => boolean
     private readonly getChildren: (node: TNode) => EdgeToChildNode<TNode, TEdge>[]
     private readonly pruneMethod: PruneMethod
+    private readonly chooseSameValueWithProbablity = 0.5
 
-    constructor(getHeuristicValue: (node: TNode) => number, nodeIsTerminal: (node: TNode) => boolean, getChildren: (node: TNode) => EdgeToChildNode<TNode, TEdge>[], pruneMethod: PruneMethod) {
+    constructor(getHeuristicValue: (node: TNode) => number, nodeIsTerminal: (node: TNode) => boolean, getChildren: (node: TNode) => EdgeToChildNode<TNode, TEdge>[], pruneMethod: PruneMethod = 'alpha-beta') {
         this.getHeuristicValue = getHeuristicValue;
         this.nodeIsTerminal = nodeIsTerminal;
         this.getChildren = getChildren;
@@ -30,7 +31,9 @@ export class Minimax<TNode, TEdge> {
     }
 
     private isNewExtreme(maximizingPlayer: boolean, newValue: number, existingValue: number) {
-        return maximizingPlayer ? newValue > existingValue : newValue < existingValue;
+        const isExtreme = maximizingPlayer ? newValue > existingValue : newValue < existingValue;
+        return isExtreme 
+            || (newValue === existingValue && Math.random() < this.chooseSameValueWithProbablity)
     }
 
     private alphaBetaPrune(maximizingPlayer: boolean, alpha: number, beta: number, extremeValue: number) {

@@ -7,6 +7,7 @@ import { boardReducer } from "../../reducers/board_reducer";
 import { AvailableMovesService } from "../../services/available_moves";
 import { BoardColor, BoardUtils } from "../../utils/board_utils";
 import produce from "immer";
+import { some } from "../../utils/generator_utils";
 
 
 function baseCaptureGetNextMove(board: Board, color: BoardColor, priortizeCheck: boolean, opponentHasNextMove = false): ChessMove | undefined {
@@ -31,7 +32,7 @@ function baseCaptureGetNextMove(board: Board, color: BoardColor, priortizeCheck:
             if (opponentHasNextMove) {
                 const availableMovesService = new AvailableMovesService(board, BoardUtils.otherColor(board.currentTurn), { allowMovesThatPutYouInCheck: true });
                 const movesTheOtherPieceCanMake = availableMovesService.getAvailablePlacesToMoveFrom(move.moveTo);
-                opponentCanCaptureFirst = movesTheOtherPieceCanMake.some(responseMove => responseMove?.moveTo === move.moveFrom)
+                opponentCanCaptureFirst = some(movesTheOtherPieceCanMake, responseMove => responseMove?.moveTo === move.moveFrom)
             }
 
             if (!opponentCanCaptureFirst) {
