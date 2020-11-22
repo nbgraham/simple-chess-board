@@ -43,6 +43,10 @@ export class Board {
     }
   }
 
+  static lastMovedPieceIsOnThisCell(boardDto: Board, cell: Cell) {
+    return Cell.equals(boardDto.lastMovedPiece?.cell, cell);
+  }
+
   static getKing(boardDto: Board, color: BoardColor): PieceAtCell | null {
     const location = color === 'white' ? boardDto.whiteKingLocation : boardDto.blackKingLocation;
     const king = location && boardDto.pieces[location.rowIndex][location.columnIndex];

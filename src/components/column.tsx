@@ -8,7 +8,7 @@ type ColumnProps = {
   columnIndex: number;
   flipped?: boolean;
 }
-export const ColumnComponent = ({ numRows, columnIndex , flipped}: ColumnProps) => {
+export const ColumnComponent: React.FC<ColumnProps> = ({ numRows, columnIndex, flipped }) => {
   const rowIndexes = flipped ? range(0, numRows).reverse() : range(0, numRows)
   return (
     <div className="col">

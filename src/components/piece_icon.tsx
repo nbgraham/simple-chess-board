@@ -2,16 +2,18 @@ import React from 'react';
 import { Piece, PieceType } from '../models/piece';
 import { BoardColor } from '../utils/board_utils';
 
-type PieceIconProps = {
+type PieceIconProps = React.HTMLAttributes<Element> & {
     piece: Piece;
-    style?: React.CSSProperties;
-    onClick?: () => void;
+    stopClickEventPropagation?: boolean;
 }
 export const PieceIcon = (props: PieceIconProps) => {
-    const { piece, ...passthroughProps } = props;
+    const { piece, stopClickEventPropagation, onClick, ...passthroughProps } = props;
+    const wrappedOnClick = (onClick && stopClickEventPropagation) ? (e: React.MouseEvent) => { e.stopPropagation(); onClick(e); }
+        : onClick;
     return (
         <img
             {...passthroughProps}
+            onClick={wrappedOnClick}
             src={getPieceImgUrl(piece)}
             alt={Piece.toString(piece)}
         />
